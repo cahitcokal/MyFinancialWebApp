@@ -7,6 +7,28 @@
   const loginForm = document.getElementById('login-form');
   const loginError = document.getElementById('login-error');
   const loginSubmit = document.getElementById('login-submit');
+  const forgotPasswordForm = document.getElementById('forgot-password-form');
+  const forgotPasswordLink = document.getElementById('forgot-password-link');
+  const backToLogin = document.getElementById('back-to-login');
+  const forgotEmail = document.getElementById('forgot-email');
+  const forgotError = document.getElementById('forgot-error');
+  const forgotMessage = document.getElementById('forgot-message');
+  const forgotSubmit = document.getElementById('forgot-submit');
+  const passwordModal = document.getElementById('password-modal');
+  const changePasswordForm = document.getElementById('change-password-form');
+  const changePasswordMessage = document.getElementById('change-password-message');
+  const changePasswordSubmit = document.getElementById('change-password-submit');
+
+  const setElementMessage = (element, message = '', type = 'error') => {
+    element.textContent = message;
+    element.classList.toggle('hidden', !message);
+    element.classList.toggle('bg-rose-50', type === 'error' && Boolean(message));
+    element.classList.toggle('border-rose-200', type === 'error' && Boolean(message));
+    element.classList.toggle('text-rose-700', type === 'error' && Boolean(message));
+    element.classList.toggle('bg-emerald-50', type === 'success' && Boolean(message));
+    element.classList.toggle('border-emerald-200', type === 'success' && Boolean(message));
+    element.classList.toggle('text-emerald-700', type === 'success' && Boolean(message));
+  };
 
   const setLoginError = (message = '') => {
     loginError.textContent = message;
@@ -16,6 +38,8 @@
   const showLoggedOut = (message = '') => {
     authScreen.classList.remove('hidden');
     app.classList.add('hidden');
+    passwordModal.classList.add('hidden');
+    passwordModal.classList.remove('flex');
     setLoginError(message);
   };
 
@@ -66,6 +90,88 @@
     loginSubmit.textContent = 'Giriş Yap';
   });
 
+  forgotPasswordLink.addEventListener('click', () => {
+    loginForm.classList.add('hidden');
+    forgotPasswordLink.classList.add('hidden');
+    forgotPasswordForm.classList.remove('hidden');
+    setLoginError();
+    setElementMessage(forgotError);
+    setElementMessage(forgotMessage);
+    forgotEmail.focus();
+  });
+
+  backToLogin.addEventListener('click', () => {
+    forgotPasswordForm.classList.add('hidden');
+    loginForm.classList.remove('hidden');
+    forgotPasswordLink.classList.remove('hidden');
+    setElementMessage(forgotError);
+    setElementMessage(forgotMessage);
+  });
+
+  forgotPasswordForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    setElementMessage(forgotError);
+    setElementMessage(forgotMessage);
+    forgotSubmit.disabled = true;
+    forgotSubmit.textContent = 'Gönderiliyor...';
+
+    const email = forgotEmail.value.trim().toLowerCase();
+    const redirectTo = new URL('./', window.location.href).href;
+    const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo });
+
+    if (error) {
+      setElementMessage(forgotError, 'Sıfırlama bağlantısı gönderilemedi. Lütfen e-posta adresini kontrol edin.');
+    } else {
+      setElementMessage(forgotMessage, 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.', 'success');
+    }
+    forgotSubmit.disabled = false;
+    forgotSubmit.textContent = 'Sıfırlama bağlantısı gönder';
+  });
+
+  const openPasswordModal = () => {
+    changePasswordForm.reset();
+    setElementMessage(changePasswordMessage);
+    passwordModal.classList.remove('hidden');
+    passwordModal.classList.add('flex');
+    document.getElementById('new-password').focus();
+  };
+
+  const closePasswordModal = () => {
+    passwordModal.classList.add('hidden');
+    passwordModal.classList.remove('flex');
+  };
+
+  document.getElementById('open-password-modal').addEventListener('click', openPasswordModal);
+  document.getElementById('close-password-modal').addEventListener('click', closePasswordModal);
+
+  changePasswordForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    setElementMessage(changePasswordMessage);
+    const password = document.getElementById('new-password').value;
+    const passwordConfirm = document.getElementById('new-password-confirm').value;
+
+    if (password.length < 6) {
+      setElementMessage(changePasswordMessage, 'Şifre en az 6 karakter olmalıdır.');
+      return;
+    }
+    if (password !== passwordConfirm) {
+      setElementMessage(changePasswordMessage, 'Şifreler aynı değil.');
+      return;
+    }
+
+    changePasswordSubmit.disabled = true;
+    changePasswordSubmit.textContent = 'Güncelleniyor...';
+    const { error } = await db.auth.updateUser({ password });
+    if (error) {
+      setElementMessage(changePasswordMessage, 'Şifre güncellenemedi. Lütfen tekrar deneyin.');
+    } else {
+      setElementMessage(changePasswordMessage, 'Şifreniz başarıyla güncellendi.', 'success');
+      changePasswordForm.reset();
+    }
+    changePasswordSubmit.disabled = false;
+    changePasswordSubmit.textContent = 'Şifreyi Güncelle';
+  });
+
   window.APP_AUTH = Object.freeze({
     client: db,
     signOut: () => db.auth.signOut({ scope: 'local' })
@@ -79,6 +185,7 @@
   window.APP_AUTH_READY = db.auth.getSession()
     .then(async ({ data }) => {
       const role = await verifyAuthorization(data.session);
+      if (role && window.location.hash.includes('type=recovery')) openPasswordModal();
       return {
         session: role ? data.session : null,
         role
@@ -90,11 +197,12 @@
     });
 
   db.auth.onAuthStateChange((event, session) => {
-    setTimeout(() => {
+    setTimeout(async () => {
       if (event === 'SIGNED_OUT') {
         showLoggedOut();
       } else if (session) {
-        verifyAuthorization(session);
+        const role = await verifyAuthorization(session);
+        if (event === 'PASSWORD_RECOVERY' && role) openPasswordModal();
       }
     }, 0);
   });
