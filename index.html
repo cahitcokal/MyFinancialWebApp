@@ -497,7 +497,7 @@
 
         <!-- TAB 2: Varlık İşlemleri -->
         <div v-show="mercanTab === 'varlik'" class="p-4 sm:p-6 space-y-6">
-          <form @submit.prevent="addAssetTransaction" class="grid grid-cols-2 md:grid-cols-7 gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200 items-end">
+          <form v-if="isAdmin" @submit.prevent="addAssetTransaction" class="grid grid-cols-2 md:grid-cols-7 gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200 items-end">
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Tarih</label><input type="date" v-model="newAsset.transaction_date" required class="w-full text-xs p-2 border rounded bg-white"></div>
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Varlık</label><select v-model="newAsset.asset_type" class="w-full text-xs p-2 border rounded bg-white"><option value="ALTIN">Altın (gr)</option><option value="USD">Dolar ($)</option><option value="KTV">KTV Fon</option></select></div>
             <div><label class="block text-xs font-medium text-slate-600 mb-1">İşlem</label><select v-model="newAsset.trade_type" class="w-full text-xs p-2 border rounded bg-white"><option value="ALIS">Alış</option><option value="SATIS">Satış</option></select></div>
@@ -560,7 +560,7 @@
 
         <!-- TAB 3: Nakit Akışı -->
         <div v-show="mercanTab === 'nakit'" class="p-4 sm:p-6 space-y-6">
-          <form @submit.prevent="addCashTransaction" class="grid grid-cols-2 md:grid-cols-6 gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200 items-end">
+          <form v-if="isAdmin" @submit.prevent="addCashTransaction" class="grid grid-cols-2 md:grid-cols-6 gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200 items-end">
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Tarih</label><input type="date" v-model="newCash.transaction_date" required class="w-full text-xs p-2 border rounded bg-white"></div>
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Akış Türü</label><select v-model="newCash.type" class="w-full text-xs p-2 border rounded bg-white"><option value="GELIR">Gelen Para (+)</option><option value="GIDER">Giden Para (-)</option></select></div>
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Açıklama</label><input type="text" v-model="newCash.title" placeholder="Açıklama" required class="w-full text-xs p-2 border rounded bg-white"></div>
@@ -619,7 +619,7 @@
             <button @click="resetFilters('home')" class="text-xs text-amber-700 hover:underline font-semibold">Filtreleri Temizle</button>
           </div>
 
-          <form @submit.prevent="addHomeAsset" class="grid grid-cols-2 md:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200 items-end">
+          <form v-if="isAdmin" @submit.prevent="addHomeAsset" class="grid grid-cols-2 md:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200 items-end">
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Kimin</label><input type="text" v-model="newHomeAsset.owner_name" placeholder="Örn: Erhan, Mercan, Hülya" required class="w-full text-xs p-2 border rounded bg-white"></div>
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Tür</label><input type="text" v-model="newHomeAsset.asset_type" placeholder="Örn: 22 Ayar Bilezik, Çeyrek Altın" required class="w-full text-xs p-2 border rounded bg-white"></div>
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Birim</label><select v-model="newHomeAsset.unit" class="w-full text-xs p-2 border rounded bg-white"><option value="Adet">Adet</option><option value="Gram">Gram</option></select></div>
@@ -751,7 +751,7 @@
             </div>
           </div>
 
-          <form @submit.prevent="addMuhammedIncome" class="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 items-end text-xs">
+          <form v-if="isAdmin" @submit.prevent="addMuhammedIncome" class="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 items-end text-xs">
             <div><label class="block font-medium text-slate-600 mb-1">Tarih</label><input type="date" v-model="newMIncome.transaction_date" required class="w-full p-1.5 border rounded bg-white"></div>
             <div><label class="block font-medium text-slate-600 mb-1">Kaynak</label><select v-model="newMIncome.source" class="w-full p-1.5 border rounded bg-white"><option value="Mami">Mami</option><option value="Tren">Tren</option></select></div>
             <div><label class="block font-medium text-slate-600 mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="newMIncome.amount" placeholder="Örn: 32000" required class="w-full p-1.5 border rounded bg-white"></div>
@@ -807,7 +807,7 @@
             </div>
           </div>
 
-          <form @submit.prevent="addMuhammedPayment" class="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 items-end text-xs">
+          <form v-if="isAdmin" @submit.prevent="addMuhammedPayment" class="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 items-end text-xs">
             <div><label class="block font-medium text-slate-600 mb-1">Tarih</label><input type="date" v-model="newMPayment.payment_date" required class="w-full p-1.5 border rounded bg-white"></div>
             <div><label class="block font-medium text-slate-600 mb-1">Kime</label><input type="text" v-model="newMPayment.target_person" placeholder="Örn: Tahir" required class="w-full p-1.5 border rounded bg-white"></div>
             <div><label class="block font-medium text-slate-600 mb-1">Birim</label><select v-model="newMPayment.currency" class="w-full p-1.5 border rounded bg-white"><option value="TL">TL (₺)</option><option value="ALTIN_GR">Altın (gr)</option><option value="USD">Dolar ($)</option></select></div>
@@ -1115,7 +1115,7 @@
             <button @click="resetFilters('cCash')" class="text-xs text-indigo-600 hover:underline font-semibold">Filtreleri Sıfırla</button>
           </div>
 
-          <form @submit.prevent="addChildCash" class="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 items-end text-xs">
+          <form v-if="isAdmin" @submit.prevent="addChildCash" class="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 items-end text-xs">
             <div><label class="block font-medium text-slate-600 mb-1">Tarih</label><input type="date" v-model="newChildCash.transaction_date" required class="w-full p-1.5 border rounded bg-white"></div>
             <div>
               <label class="block font-medium text-slate-600 mb-1">Kime</label>
@@ -1178,7 +1178,7 @@
             <button @click="resetFilters('cGold')" class="text-xs text-amber-700 hover:underline font-semibold">Filtreleri Sıfırla</button>
           </div>
 
-          <form @submit.prevent="addChildGold" class="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 items-end text-xs">
+          <form v-if="isAdmin" @submit.prevent="addChildGold" class="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 items-end text-xs">
             <div><label class="block font-medium text-slate-600 mb-1">Tarih</label><input type="date" v-model="newChildGold.transaction_date" required class="w-full p-1.5 border rounded bg-white"></div>
             <div>
               <label class="block font-medium text-slate-600 mb-1">Kime</label>

@@ -271,6 +271,7 @@
 
         // Çocuklar Ekleme İşlemleri
         const addChildCash = async () => {
+          if (!isAdmin.value) return;
           const { error } = await db.from('children_cash').insert([newChildCash.value]);
           if (!error) {
             await fetchData();
@@ -279,6 +280,7 @@
         };
 
         const addChildGold = async () => {
+          if (!isAdmin.value) return;
           const { error } = await db.from('children_gold').insert([newChildGold.value]);
           if (!error) {
             await fetchData();
@@ -343,16 +345,19 @@
 
         // Mercan Ekleme İşlemleri
         const addAssetTransaction = async () => {
+          if (!isAdmin.value) return;
           const { error } = await db.from('asset_transactions').insert([newAsset.value]);
           if (!error) { await fetchData(); newAsset.value.amount = null; newAsset.value.total_try = null; }
         };
 
         const addCashTransaction = async () => {
+          if (!isAdmin.value) return;
           const { error } = await db.from('cash_transactions').insert([newCash.value]);
           if (!error) { await fetchData(); newCash.value.title = ''; newCash.value.amount = null; }
         };
 
         const addHomeAsset = async () => {
+          if (!isAdmin.value) return;
           const { error } = await db.from('home_assets').insert([newHomeAsset.value]);
           if (!error) { await fetchData(); newHomeAsset.value.owner_name = ''; newHomeAsset.value.asset_type = ''; newHomeAsset.value.amount = null; }
         };
@@ -363,6 +368,7 @@
         };
 
         const addMuhammedIncome = async () => {
+          if (!isAdmin.value) return;
           let goldToErcan = 0;
           if (newMIncome.value.source === 'Tren' && newMIncome.value.gold_rate > 0) {
             goldToErcan = Number((newMIncome.value.amount / newMIncome.value.gold_rate).toFixed(2));
@@ -379,6 +385,7 @@
         };
 
         const addMuhammedPayment = async () => {
+          if (!isAdmin.value) return;
           const totalTry = newMPayment.value.currency === 'TL'
             ? Number(newMPayment.value.amount)
             : Number(newMPayment.value.amount_try);

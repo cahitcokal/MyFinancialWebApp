@@ -70,6 +70,7 @@ begin
       execute format('drop policy if exists "allowed users full access" on public.%I', table_name);
       execute format('drop policy if exists "allowed users can read" on public.%I', table_name);
       execute format('drop policy if exists "allowed users can insert" on public.%I', table_name);
+      execute format('drop policy if exists "admins can insert" on public.%I', table_name);
       execute format('drop policy if exists "admins can update" on public.%I', table_name);
       execute format('drop policy if exists "admins can delete" on public.%I', table_name);
       execute format(
@@ -77,7 +78,7 @@ begin
         table_name
       );
       execute format(
-        'create policy "allowed users can insert" on public.%I for insert to authenticated with check (auth.uid() is not null and public.is_allowed_user())',
+        'create policy "admins can insert" on public.%I for insert to authenticated with check (public.get_my_role() = ''admin'')',
         table_name
       );
       execute format(
