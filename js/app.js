@@ -12,6 +12,7 @@
         const mercanTab = ref('ozetler');
 
         const deferredPrompt = ref(null);
+        const dumpInProgress = ref(false);
         window.addEventListener('beforeinstallprompt', (e) => {
           e.preventDefault();
           deferredPrompt.value = e;
@@ -367,6 +368,31 @@
           await db.from('market_prices').upsert({ asset_type: asset, current_price: prices.value[asset] });
         };
 
+        const downloadDatabaseDump = async () => {
+          if (!isAdmin.value || dumpInProgress.value) return;
+          dumpInProgress.value = true;
+          try {
+            const sql = await window.DatabaseDump.createSqlDump(db);
+            const blob = new Blob([sql], { type: 'application/sql;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const now = new Date();
+            const pad = value => String(value).padStart(2, '0');
+            const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+            link.href = url;
+            link.download = `DatabaseDump_${timestamp}.sql`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+          } catch (error) {
+            console.error('SQL dump oluşturulamadı:', error);
+            alert(`SQL dump oluşturulamadı: ${error.message}`);
+          } finally {
+            dumpInProgress.value = false;
+          }
+        };
+
         const addMuhammedIncome = async () => {
           if (!isAdmin.value) return;
           let goldToErcan = 0;
@@ -693,7 +719,9 @@
           mainModule,
           mercanTab,
           deferredPrompt,
+          dumpInProgress,
           installPwa,
+          downloadDatabaseDump,
           signOut,
           isAdmin,
           sorts,

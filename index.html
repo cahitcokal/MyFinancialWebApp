@@ -20,6 +20,7 @@
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <!-- Supabase JS Client v2 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./js/database-dump.js" defer></script>
   <script src="./js/config.js" defer></script>
   <script src="./js/app.js" defer></script>
 </head>
@@ -94,6 +95,9 @@
         </div>
         <button v-if="deferredPrompt" @click="installPwa" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-sm font-semibold animate-pulse">
           📲 Uygulamayı Yükle
+        </button>
+        <button v-if="isAdmin" @click="downloadDatabaseDump" :disabled="dumpInProgress" class="bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white text-xs px-3 py-1.5 rounded-lg transition-colors font-semibold">
+          {{ dumpInProgress ? 'SQL hazırlanıyor...' : '🗄️ SQL Dışa Aktar' }}
         </button>
         <button id="open-password-modal" type="button" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs px-3 py-1.5 rounded-lg transition-colors font-semibold">
           Şifre Değiştir
