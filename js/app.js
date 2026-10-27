@@ -1,4 +1,3 @@
-      window.addEventListener('load', () => {
     const { createApp, ref, computed, reactive, onMounted } = Vue;
 
     // Supabase bağlantısı config.js tarafından merkezi olarak sağlanır.
