@@ -4,6 +4,7 @@
     const { supabaseUrl, supabaseAnonKey } = window.APP_CONFIG;
     const db = window.APP_AUTH?.client || window.supabase.createClient(supabaseUrl, supabaseAnonKey);
     const signOut = () => window.APP_AUTH?.signOut();
+    const isAdmin = ref(false);
 
     createApp({
       setup() {
@@ -137,6 +138,7 @@
         };
 
         const deleteRow = async (tableName, id) => {
+          if (!isAdmin.value) return;
           if (!confirm("Bu kaydı kalıcı olarak silmek istediğinizden emin misiniz?")) return;
           const { error } = await db.from(tableName).delete().eq('id', id);
           if (!error) await fetchData();
@@ -161,6 +163,7 @@
         };
 
         const saveEditRow = async () => {
+          if (!isAdmin.value) return;
           const row = editModal.value.row;
           const table = editModal.value.table;
 
@@ -355,6 +358,7 @@
         };
 
         const savePrice = async (asset) => {
+          if (!isAdmin.value) return;
           await db.from('market_prices').upsert({ asset_type: asset, current_price: prices.value[asset] });
         };
 
@@ -668,10 +672,14 @@
         const formatPlain = (val) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(val || 0);
 
         onMounted(() => {
-          window.APP_AUTH_READY?.then(({ session }) => {
+          window.APP_AUTH_READY?.then(({ session, role }) => {
+            isAdmin.value = role === 'admin';
             if (session) fetchData();
           });
-          window.addEventListener('app-authenticated', fetchData);
+          window.addEventListener('app-authenticated', (event) => {
+            isAdmin.value = event.detail?.role === 'admin';
+            fetchData();
+          });
         });
 
         return {
@@ -680,6 +688,7 @@
           deferredPrompt,
           installPwa,
           signOut,
+          isAdmin,
           sorts,
           colFilters,
           setSort,

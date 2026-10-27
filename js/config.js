@@ -19,10 +19,10 @@
     setLoginError(message);
   };
 
-  const showLoggedIn = () => {
+  const showLoggedIn = (role) => {
     authScreen.classList.add('hidden');
     app.classList.remove('hidden');
-    window.dispatchEvent(new CustomEvent('app-authenticated'));
+    window.dispatchEvent(new CustomEvent('app-authenticated', { detail: { role } }));
   };
 
   const authErrorMessage = (error) => {
@@ -35,18 +35,18 @@
   const verifyAuthorization = async (session) => {
     if (!session) {
       showLoggedOut();
-      return false;
+      return null;
     }
 
-    const { data: allowed, error } = await db.rpc('is_allowed_user');
-    if (error || allowed !== true) {
+    const { data: role, error } = await db.rpc('get_my_role');
+    if (error || !['admin', 'member'].includes(role)) {
       await db.auth.signOut({ scope: 'local' });
       showLoggedOut('Bu kullanıcı uygulamayı kullanmak için yetkilendirilmemiş.');
-      return false;
+      return null;
     }
 
-    showLoggedIn();
-    return true;
+    showLoggedIn(role);
+    return role;
   };
 
   loginForm.addEventListener('submit', async (event) => {
@@ -77,12 +77,16 @@
   });
 
   window.APP_AUTH_READY = db.auth.getSession()
-    .then(async ({ data }) => ({
-      session: await verifyAuthorization(data.session) ? data.session : null
-    }))
+    .then(async ({ data }) => {
+      const role = await verifyAuthorization(data.session);
+      return {
+        session: role ? data.session : null,
+        role
+      };
+    })
     .catch(() => {
       showLoggedOut('Oturum kontrol edilemedi. Lütfen sayfayı yenileyin.');
-      return { session: null };
+      return { session: null, role: null };
     });
 
   db.auth.onAuthStateChange((event, session) => {

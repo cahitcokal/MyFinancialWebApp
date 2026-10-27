@@ -69,15 +69,15 @@
       <div class="flex items-center gap-3">
         <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-xs">
           <span class="text-amber-800 font-medium">Altın (gr):</span>
-          <input type="number" step="0.01" v-model.number="prices.ALTIN" @change="savePrice('ALTIN')" class="w-20 ml-1 font-bold bg-transparent text-right outline-none"> ₺
+          <input type="number" step="0.01" v-model.number="prices.ALTIN" @change="savePrice('ALTIN')" :readonly="!isAdmin" class="w-20 ml-1 font-bold bg-transparent text-right outline-none"> ₺
         </div>
         <div class="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5 text-xs">
           <span class="text-emerald-800 font-medium">Dolar:</span>
-          <input type="number" step="0.01" v-model.number="prices.USD" @change="savePrice('USD')" class="w-16 ml-1 font-bold bg-transparent text-right outline-none"> ₺
+          <input type="number" step="0.01" v-model.number="prices.USD" @change="savePrice('USD')" :readonly="!isAdmin" class="w-16 ml-1 font-bold bg-transparent text-right outline-none"> ₺
         </div>
         <div class="bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 text-xs">
           <span class="text-blue-800 font-medium">KTV:</span>
-          <input type="number" step="0.0001" v-model.number="prices.KTV" @change="savePrice('KTV')" class="w-20 ml-1 font-bold bg-transparent text-right outline-none"> ₺
+          <input type="number" step="0.0001" v-model.number="prices.KTV" @change="savePrice('KTV')" :readonly="!isAdmin" class="w-20 ml-1 font-bold bg-transparent text-right outline-none"> ₺
         </div>
       </div>
     </header>
@@ -548,9 +548,9 @@
                   </td>
                   <td class="p-2.5 font-medium">{{ item.target_person || '-' }}</td>
                   <td class="p-2.5 text-center space-x-1.5 whitespace-nowrap">
-                    <button @click="openEditModal('asset_transactions', item)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <button v-if="isAdmin" @click="openEditModal('asset_transactions', item)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                     <span class="text-slate-300">|</span>
-                    <button @click="deleteRow('asset_transactions', item.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                    <button v-if="isAdmin" @click="deleteRow('asset_transactions', item.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
                 </tr>
               </tbody>
@@ -602,9 +602,9 @@
                   <td class="p-2.5 text-right font-mono font-semibold" :class="item.type === 'GELIR' ? 'text-emerald-600' : 'text-rose-600'">{{ item.type === 'GELIR' ? '+' : '-' }}{{ formatMoney(item.amount) }}</td>
                   <td class="p-2.5 text-slate-500 font-medium">{{ item.category }}</td>
                   <td class="p-2.5 text-center space-x-1.5 whitespace-nowrap">
-                    <button @click="openEditModal('cash_transactions', item)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <button v-if="isAdmin" @click="openEditModal('cash_transactions', item)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                     <span class="text-slate-300">|</span>
-                    <button @click="deleteRow('cash_transactions', item.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                    <button v-if="isAdmin" @click="deleteRow('cash_transactions', item.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
                 </tr>
               </tbody>
@@ -652,9 +652,9 @@
                   <td class="p-3"><span class="px-2 py-0.5 rounded text-[11px] font-semibold" :class="item.unit === 'Gram' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-800'">{{ item.unit }}</span></td>
                   <td class="p-3 text-right font-mono font-bold text-sm text-slate-900">{{ Number(item.amount).toLocaleString('tr-TR') }}</td>
                   <td class="p-3 text-center space-x-2 whitespace-nowrap">
-                    <button @click="openEditModal('home_assets', item)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <button v-if="isAdmin" @click="openEditModal('home_assets', item)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                     <span class="text-slate-300">|</span>
-                    <button @click="deleteRow('home_assets', item.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                    <button v-if="isAdmin" @click="deleteRow('home_assets', item.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
                 </tr>
               </tbody>
@@ -787,9 +787,9 @@
                   <td class="p-2 text-right font-mono text-slate-400">{{ inc.gold_rate || '-' }}</td>
                   <td class="p-2 text-right font-mono text-amber-700">{{ inc.gold_debt_to_ercan ? inc.gold_debt_to_ercan + ' gr' : '-' }}</td>
                   <td class="p-2 text-center space-x-1">
-                    <button @click="openEditModal('muhammed_incomes', inc)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <button v-if="isAdmin" @click="openEditModal('muhammed_incomes', inc)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                     <span class="text-slate-300">|</span>
-                    <button @click="deleteRow('muhammed_incomes', inc.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                    <button v-if="isAdmin" @click="deleteRow('muhammed_incomes', inc.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
                 </tr>
               </tbody>
@@ -844,9 +844,9 @@
                   <td class="p-2 text-right font-mono font-bold text-emerald-600">{{ formatMoney(pay.amount_try) }}</td>
                   <td class="p-2 text-right font-mono text-slate-400">{{ paymentUnitPrice(pay) === null ? '-' : formatMoney(paymentUnitPrice(pay)) }}</td>
                   <td class="p-2 text-center space-x-1">
-                    <button @click="openEditModal('muhammed_payments', pay)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <button v-if="isAdmin" @click="openEditModal('muhammed_payments', pay)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                     <span class="text-slate-300">|</span>
-                    <button @click="deleteRow('muhammed_payments', pay.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                    <button v-if="isAdmin" @click="deleteRow('muhammed_payments', pay.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
                 </tr>
               </tbody>
@@ -912,9 +912,9 @@
                 </td>
                 <td class="p-2.5 text-slate-500">{{ d.note || '-' }}</td>
                 <td class="p-2.5 text-center space-x-1.5 whitespace-nowrap">
-                  <button @click="openEditModal('muhammed_debts', d)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                  <button v-if="isAdmin" @click="openEditModal('muhammed_debts', d)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                   <span class="text-slate-300">|</span>
-                  <button @click="deleteRow('muhammed_debts', d.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                  <button v-if="isAdmin" @click="deleteRow('muhammed_debts', d.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                 </td>
               </tr>
             </tbody>
@@ -968,9 +968,9 @@
                 <td class="p-2.5"><span :class="d.account_status === 'Hesaplar Kapalı' ? 'text-slate-500' : 'text-amber-700 font-semibold'">{{ d.account_status || '-' }}</span></td>
                 <td class="p-2.5 text-slate-500 max-w-xs truncate" :title="d.note">{{ d.note || '-' }}</td>
                 <td class="p-2.5 text-center space-x-1.5 whitespace-nowrap">
-                  <button @click="openEditModal('muhammed_debts', d)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                  <button v-if="isAdmin" @click="openEditModal('muhammed_debts', d)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                   <span class="text-slate-300">|</span>
-                  <button @click="deleteRow('muhammed_debts', d.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                  <button v-if="isAdmin" @click="deleteRow('muhammed_debts', d.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                 </td>
               </tr>
             </tbody>
@@ -1161,9 +1161,9 @@
                   <td class="p-2"><span :class="c.type === 'GELIR' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'" class="px-1.5 py-0.5 rounded text-[10px] font-bold">{{ c.type }}</span></td>
                   <td class="p-2 text-right font-mono font-bold" :class="c.type === 'GELIR' ? 'text-emerald-600' : 'text-rose-600'">{{ c.type === 'GELIR' ? '+' : '-' }}{{ formatMoney(c.amount) }}</td>
                   <td class="p-2 text-center space-x-1 whitespace-nowrap">
-                    <button @click="openEditModal('children_cash', c)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <button v-if="isAdmin" @click="openEditModal('children_cash', c)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                     <span class="text-slate-300">|</span>
-                    <button @click="deleteRow('children_cash', c.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                    <button v-if="isAdmin" @click="deleteRow('children_cash', c.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
                 </tr>
               </tbody>
@@ -1219,9 +1219,9 @@
                   <td class="p-2 text-right font-mono font-semibold">{{ formatMoney(g.total_try) }}</td>
                   <td class="p-2 text-right font-mono text-slate-400">{{ (Number(g.total_try) / (Number(g.amount) || 1)).toFixed(0) }} ₺</td>
                   <td class="p-2 text-center space-x-1 whitespace-nowrap">
-                    <button @click="openEditModal('children_gold', g)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <button v-if="isAdmin" @click="openEditModal('children_gold', g)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                     <span class="text-slate-300">|</span>
-                    <button @click="deleteRow('children_gold', g.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                    <button v-if="isAdmin" @click="deleteRow('children_gold', g.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
                 </tr>
               </tbody>
@@ -1234,7 +1234,7 @@
     </div>
 
     <!-- ==================== GÜNCELLEME MODAL PENCERESİ ==================== -->
-    <div v-if="editModal.isOpen" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div v-if="isAdmin && editModal.isOpen" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4">
         <div class="flex justify-between items-center border-b pb-2">
           <h3 class="font-bold text-slate-800">Kaydı Güncelle</h3>
