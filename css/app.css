@@ -1,0 +1,10 @@
+[v-cloak] { display: none; }
+
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+th.sortable:hover {
+  background-color: #e2e8f0;
+}

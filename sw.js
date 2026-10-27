@@ -2,6 +2,9 @@ const CACHE_NAME = 'hesapkitap-v1';
 const APP_SHELL = [
   './',
   './index.html',
+  './css/app.css',
+  './js/config.js',
+  './js/app.js',
   './site.webmanifest',
   './favicon.ico',
   './icon.png',
