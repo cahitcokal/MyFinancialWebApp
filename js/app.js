@@ -3,7 +3,8 @@
 
     // Supabase bağlantısı config.js tarafından merkezi olarak sağlanır.
     const { supabaseUrl, supabaseAnonKey } = window.APP_CONFIG;
-    const db = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    const db = window.APP_AUTH?.client || window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    const signOut = () => window.APP_AUTH?.signOut();
 
     createApp({
       setup() {
@@ -667,13 +668,19 @@
         const formatMoney = (val) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(val || 0);
         const formatPlain = (val) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(val || 0);
 
-        onMounted(fetchData);
+        onMounted(() => {
+          window.APP_AUTH_READY?.then(({ session }) => {
+            if (session) fetchData();
+          });
+          window.addEventListener('app-authenticated', fetchData);
+        });
 
         return {
           mainModule,
           mercanTab,
           deferredPrompt,
           installPwa,
+          signOut,
           sorts,
           colFilters,
           setSort,
