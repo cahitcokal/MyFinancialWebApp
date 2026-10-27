@@ -1,6 +1,7 @@
 (function configureApplication() {
   const SUPABASE_URL = 'https://ogioyzxqmahowxogwwbb.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_qQ17gKmqw8TEfiRSNIchSw_w7hLr5aL';
+  const PASSWORD_RESET_REDIRECT_URL = 'https://cahitcokal.github.io/MyFinancialWebApp/';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const authScreen = document.getElementById('auth-screen');
   const app = document.getElementById('app');
@@ -116,8 +117,9 @@
     forgotSubmit.textContent = 'Gönderiliyor...';
 
     const email = forgotEmail.value.trim().toLowerCase();
-    const redirectTo = new URL('./', window.location.href).href;
-    const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo });
+    const { error } = await db.auth.resetPasswordForEmail(email, {
+      redirectTo: PASSWORD_RESET_REDIRECT_URL
+    });
 
     if (error) {
       setElementMessage(forgotError, 'Sıfırlama bağlantısı gönderilemedi. Lütfen e-posta adresini kontrol edin.');
