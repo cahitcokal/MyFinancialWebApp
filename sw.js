@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hesapkitap-v1';
+const CACHE_NAME = 'hesapkitap-v2';
 const APP_SHELL = [
   './',
   './index.html',
