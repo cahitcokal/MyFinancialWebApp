@@ -1,0 +1,23 @@
+{
+  "short_name": "HesapKitap",
+  "name": "Hesap Kitap - Aile Finans Portalı",
+  "icons": [
+    {
+      "src": "icon.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#4f46e5"
+}

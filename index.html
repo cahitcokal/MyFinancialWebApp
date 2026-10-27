@@ -1,0 +1,2058 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Hesap Kitap - Mercan, Muhammed & Çocuklar Portalı</title>
+
+  <!-- PWA & Mobil Meta Etiketleri -->
+  <link rel="manifest" href="./site.webmanifest">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="HesapKitap">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/9959/9959556.png">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- Supabase JS Client v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    [v-cloak] { display: none; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { background-color: #e2e8f0; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen">
+  <div id="app" v-cloak class="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- Üst Bar & Piyasa Fiyatları -->
+    <header class="bg-white rounded-xl shadow-sm p-4 flex flex-wrap items-center justify-between gap-4 border border-slate-200">
+      <div class="flex items-center gap-3">
+        <div>
+          <h1 class="text-xl font-bold text-slate-800">Aile Finans Portalı</h1>
+          <p class="text-xs text-slate-500">Mercan Portföy, Evdeki Varlıklar, Muhammed & Çocuklar</p>
+        </div>
+        <button v-if="deferredPrompt" @click="installPwa" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-sm font-semibold animate-pulse">
+          📲 Uygulamayı Yükle
+        </button>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-xs">
+          <span class="text-amber-800 font-medium">Altın (gr):</span>
+          <input type="number" step="0.01" v-model.number="prices.ALTIN" @change="savePrice('ALTIN')" class="w-20 ml-1 font-bold bg-transparent text-right outline-none"> ₺
+        </div>
+        <div class="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5 text-xs">
+          <span class="text-emerald-800 font-medium">Dolar:</span>
+          <input type="number" step="0.01" v-model.number="prices.USD" @change="savePrice('USD')" class="w-16 ml-1 font-bold bg-transparent text-right outline-none"> ₺
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 text-xs">
+          <span class="text-blue-800 font-medium">KTV:</span>
+          <input type="number" step="0.0001" v-model.number="prices.KTV" @change="savePrice('KTV')" class="w-20 ml-1 font-bold bg-transparent text-right outline-none"> ₺
+        </div>
+      </div>
+    </header>
+
+    <!-- ANA MODÜL MENÜSÜ -->
+    <nav class="flex space-x-2 border-b border-slate-300 pb-2 overflow-x-auto">
+      <button @click="mainModule = 'mercan'" :class="mainModule === 'mercan' ? 'bg-indigo-600 text-white font-bold' : 'bg-white text-slate-600 hover:bg-slate-200'" class="px-5 py-2.5 rounded-lg text-sm transition-all shadow-sm whitespace-nowrap">
+        📁 Mercan Kasa & Varlıklar
+      </button>
+      <button @click="mainModule = 'muhammed'" :class="mainModule === 'muhammed' ? 'bg-indigo-600 text-white font-bold' : 'bg-white text-slate-600 hover:bg-slate-200'" class="px-5 py-2.5 rounded-lg text-sm transition-all shadow-sm whitespace-nowrap">
+        🤝 Muhammed Borç & Ödemeler
+      </button>
+      <button @click="mainModule = 'cocuklar'" :class="mainModule === 'cocuklar' ? 'bg-amber-600 text-white font-bold' : 'bg-white text-slate-600 hover:bg-slate-200'" class="px-5 py-2.5 rounded-lg text-sm transition-all shadow-sm whitespace-nowrap">
+        👶 Çocuklar (Harçlık & Altın)
+      </button>
+    </nav>
+
+    <!-- ==================== MODÜL 1: MERCAN ==================== -->
+    <div v-show="mainModule === 'mercan'" class="space-y-6">
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- Net Nakit Bakiye -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase text-slate-400">Net Nakit Bakiye (Hesapta Kalan)</p>
+            <p class="text-2xl font-bold mt-1" :class="summary.netCash >= 0 ? 'text-slate-800' : 'text-red-600'">
+              {{ formatMoney(summary.netCash) }}
+            </p>
+          </div>
+          <div class="pt-2 border-t border-slate-100 text-[11px] text-slate-500 space-y-0.5">
+            <div class="flex justify-between">
+              <span>Toplam Gelir:</span>
+              <span class="font-medium text-slate-700">{{ formatMoney(summary.totalIncome) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Toplam Gider:</span>
+              <span class="font-medium text-slate-700">{{ formatMoney(summary.totalExpense) }}</span>
+            </div>
+            <div class="flex justify-between text-amber-700 font-medium">
+              <span>Net Birikim Çıkışı:</span>
+              <span>{{ formatMoney(summary.totalAssetInvested) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Altın Portföyü -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center">
+              <p class="text-xs font-semibold uppercase text-amber-600">Altın Portföyü</p>
+              <span class="text-xs bg-amber-500 text-white px-2 py-0.5 rounded font-mono font-bold" title="Muhammed'in borcu düşüldükten sonra fiili kalan">
+                Hesapta: {{ summary.gold.inAccount.toFixed(2) }} gr
+              </span>
+            </div>
+            <div class="mt-1 flex items-baseline justify-between">
+              <span class="text-lg font-bold text-slate-800">{{ formatMoney(summary.gold.currentVal) }}</span>
+              <span class="text-[11px] text-slate-400 font-mono">Olması Gereken: {{ summary.gold.shouldBe.toFixed(2) }} gr</span>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-slate-100 text-[11px] text-slate-500 space-y-0.5">
+            <div class="flex justify-between">
+              <span>Alınan / Satılan:</span>
+              <span class="font-medium text-slate-700 font-mono">{{ summary.gold.buyQty.toFixed(2) }} / {{ summary.gold.sellQty.toFixed(2) }} gr</span>
+            </div>
+            <div class="flex justify-between text-rose-600 font-medium">
+              <span>Mamiden Gelecek:</span>
+              <span class="font-mono">-{{ summary.gold.mamiDebt.toFixed(2) }} gr</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Ortalama / Kâr-Zarar:</span>
+              <span class="font-medium" :class="summary.gold.pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'">
+                {{ summary.gold.avgCost.toFixed(0) }} ₺ | {{ summary.gold.pnl >= 0 ? '+' : '' }}{{ formatPlain(summary.gold.pnl) }} ₺
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dolar Portföyü -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center">
+              <p class="text-xs font-semibold uppercase text-emerald-600">Dolar Portföyü</p>
+              <span class="text-xs bg-emerald-600 text-white px-2 py-0.5 rounded font-mono font-bold" title="Muhammed'in borcu düşüldükten sonra fiili kalan">
+                Hesapta: ${{ summary.usd.inAccount.toFixed(0) }}
+              </span>
+            </div>
+            <div class="mt-1 flex items-baseline justify-between">
+              <span class="text-lg font-bold text-slate-800">{{ formatMoney(summary.usd.currentVal) }}</span>
+              <span class="text-[11px] text-slate-400 font-mono">Olması Gereken: ${{ summary.usd.shouldBe.toFixed(0) }}</span>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-slate-100 text-[11px] text-slate-500 space-y-0.5">
+            <div class="flex justify-between">
+              <span>Alınan / Satılan:</span>
+              <span class="font-medium text-slate-700 font-mono">${{ summary.usd.buyQty.toFixed(0) }} / ${{ summary.usd.sellQty.toFixed(0) }}</span>
+            </div>
+            <div class="flex justify-between text-rose-600 font-medium">
+              <span>Mamiden Gelecek:</span>
+              <span class="font-mono">-${{ summary.usd.mamiDebt.toFixed(0) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Ortalama / Kâr-Zarar:</span>
+              <span class="font-medium" :class="summary.usd.pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'">
+                {{ summary.usd.avgCost.toFixed(2) }} ₺ | {{ summary.usd.pnl >= 0 ? '+' : '' }}{{ formatPlain(summary.usd.pnl) }} ₺
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- KTV Portföyü -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center">
+              <p class="text-xs font-semibold uppercase text-blue-600">KTV Fon Portföyü</p>
+              <span class="text-xs bg-blue-600 text-white px-2 py-0.5 rounded font-mono font-bold">
+                Hesapta: {{ summary.ktv.inAccount.toFixed(0) }} Adet
+              </span>
+            </div>
+            <div class="mt-1 flex items-baseline justify-between">
+              <span class="text-lg font-bold text-slate-800">{{ formatMoney(summary.ktv.currentVal) }}</span>
+              <span class="text-[11px] text-slate-400 font-mono">Olması Gereken: {{ summary.ktv.shouldBe.toFixed(0) }}</span>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-slate-100 text-[11px] text-slate-500 space-y-0.5">
+            <div class="flex justify-between">
+              <span>Alınan / Satılan:</span>
+              <span class="font-medium text-slate-700 font-mono">{{ summary.ktv.buyQty.toFixed(0) }} / {{ summary.ktv.sellQty.toFixed(0) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Birim Maliyet:</span>
+              <span class="font-medium text-slate-700 font-mono">{{ summary.ktv.avgCost.toFixed(4) }} ₺</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Gerçekleşen Kâr:</span>
+              <span class="font-medium font-mono text-emerald-600">
+                +{{ formatPlain(summary.ktv.pnl) }} ₺
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Mercan Alt Sekmeleri -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="border-b border-slate-200 flex px-4 bg-slate-50 overflow-x-auto">
+          <button @click="mercanTab = 'ozetler'" :class="mercanTab === 'ozetler' ? 'border-b-2 border-amber-500 text-amber-700 font-bold bg-white' : 'text-slate-600 hover:text-slate-900'" class="py-3 px-4 text-sm transition-colors whitespace-nowrap">
+            📊 Kişi & Kategori Özetleri (Güncel Bilanço)
+          </button>
+          <button @click="mercanTab = 'varlik'" :class="mercanTab === 'varlik' ? 'border-b-2 border-indigo-600 text-indigo-600 font-semibold bg-white' : 'text-slate-600 hover:text-slate-900'" class="py-3 px-4 text-sm transition-colors whitespace-nowrap">
+            Varlık İşlemleri
+          </button>
+          <button @click="mercanTab = 'nakit'" :class="mercanTab === 'nakit' ? 'border-b-2 border-indigo-600 text-indigo-600 font-semibold bg-white' : 'text-slate-600 hover:text-slate-900'" class="py-3 px-4 text-sm transition-colors whitespace-nowrap">
+            Nakit Akışı (Gelen / Giden)
+          </button>
+          <button @click="mercanTab = 'evdeki'" :class="mercanTab === 'evdeki' ? 'border-b-2 border-amber-600 text-amber-700 font-bold bg-white' : 'text-slate-600 hover:text-slate-900'" class="py-3 px-4 text-sm transition-colors whitespace-nowrap">
+            🏠 Evdeki Liste
+          </button>
+        </div>
+
+        <!-- TAB 1: KİŞİ & KATEGORİ ÖZETLERİ (6 KİŞİ) -->
+        <div v-show="mercanTab === 'ozetler'" class="p-4 sm:p-6 space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            <!-- 1. KÖY TABLOSU -->
+            <div class="bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Onur Düğün Öncesi Kalan</span>
+                <span class="font-bold">{{ formatPlain(personTotals.koy.dugunOncesiKalan) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Emekli Maaş Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.koy.emekliGelir) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Diğer Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.koy.digerGelir) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#ffee00] text-black px-2 py-1.5 rounded font-black border border-amber-400">
+                <span>Köy Net Kalan</span>
+                <span>{{ formatPlain(personTotals.koy.netKalan) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Köy Gider</span>
+                <span class="font-bold">{{ formatPlain(personTotals.koy.gider) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Köy Yatırım Gider</span>
+                <span class="font-bold">{{ formatPlain(personTotals.koy.yatirimGider) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Köy Yatırım Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.koy.yatirimGelir) }}</span>
+              </div>
+              <div class="mt-2 pt-2 border-t border-slate-600 space-y-1">
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Köy Altın Birikim(gr)</span>
+                  <span class="font-bold">{{ personTotals.koy.altinBirikim.toFixed(2) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Mamiye Verilen (Kalan Borç)</span>
+                  <span class="font-bold">{{ personTotals.koy.mamiyeVerilen.toFixed(2) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Hesapta Kalan</span>
+                  <span class="font-bold">{{ personTotals.koy.hesaptaKalan.toFixed(2) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. HİLAL TABLOSU -->
+            <div class="bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Hilal Toplam Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.hilal.gelir) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#ffee00] text-black px-2 py-1.5 rounded font-black border border-amber-400">
+                <span>Hilal Net Kalan</span>
+                <span>{{ formatPlain(personTotals.hilal.netKalan) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Hilal Yatırım Gider</span>
+                <span class="font-bold">{{ formatPlain(personTotals.hilal.yatirimGider) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Hilal Yatırım Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.hilal.yatirimGelir) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Hilal Harcanan</span>
+                <span class="font-bold">{{ formatPlain(personTotals.hilal.harcanan) }}</span>
+              </div>
+              <div class="mt-2 pt-2 border-t border-slate-600 space-y-1">
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Hilal Altın Birikim(gr)</span>
+                  <span class="font-bold">{{ personTotals.hilal.altinBirikim.toFixed(2) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Mamiye Verilen (Kalan Borç)</span>
+                  <span class="font-bold">{{ personTotals.hilal.mamiyeVerilenAltin.toFixed(2) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Hesapta Kalan</span>
+                  <span class="font-bold">{{ personTotals.hilal.hesaptaKalanAltin.toFixed(2) }}</span>
+                </div>
+              </div>
+              <div class="mt-2 pt-2 border-t border-slate-600 space-y-1">
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Hilal Dolar Birikim(USD)</span>
+                  <span class="font-bold">${{ personTotals.hilal.dolarBirikim.toFixed(0) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Mamiye Verilen (Kalan Borç)</span>
+                  <span class="font-bold">${{ personTotals.hilal.mamiyeVerilenDolar.toFixed(0) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Hesapta Kalan</span>
+                  <span class="font-bold">${{ personTotals.hilal.hesaptaKalanDolar.toFixed(0) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. AZAD TABLOSU -->
+            <div class="bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Azad Toplam Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.azad.gelir) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#ffee00] text-black px-2 py-1.5 rounded font-black border border-amber-400">
+                <span>Azad Net Kalan</span>
+                <span>{{ formatPlain(personTotals.azad.netKalan) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Azad Yatırım Gider</span>
+                <span class="font-bold">{{ formatPlain(personTotals.azad.yatirimGider) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Azad Yatırım Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.azad.yatirimGelir) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Azad Harcanan</span>
+                <span class="font-bold">{{ formatPlain(personTotals.azad.harcanan) }}</span>
+              </div>
+              <div class="mt-2 pt-2 border-t border-slate-600 space-y-1">
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Azad Altın Birikim(gr)</span>
+                  <span class="font-bold">{{ personTotals.azad.altinBirikim.toFixed(2) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Mamiye Verilen (Kalan Borç)</span>
+                  <span class="font-bold">{{ personTotals.azad.mamiyeVerilenAltin.toFixed(2) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Hesapta Kalan</span>
+                  <span class="font-bold">{{ personTotals.azad.hesaptaKalanAltin.toFixed(2) }}</span>
+                </div>
+              </div>
+              <div class="mt-2 pt-2 border-t border-slate-600 space-y-1">
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Azad Dolar Birikim(USD)</span>
+                  <span class="font-bold">${{ personTotals.azad.dolarBirikim.toFixed(0) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Mamiye Verilen (Kalan Borç)</span>
+                  <span class="font-bold">${{ personTotals.azad.mamiyeVerilenDolar.toFixed(0) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Hesapta Kalan</span>
+                  <span class="font-bold">${{ personTotals.azad.hesaptaKalanDolar.toFixed(0) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. ERHAN TABLOSU -->
+            <div class="bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Erhan Toplam Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.erhan.gelir) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#ffee00] text-black px-2 py-1.5 rounded font-black border border-amber-400">
+                <span>Erhan Net Kalan</span>
+                <span>{{ formatPlain(personTotals.erhan.netKalan) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Erhan Yatırım Gider</span>
+                <span class="font-bold">{{ formatPlain(personTotals.erhan.yatirimGider) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Erhan Yatırım Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.erhan.yatirimGelir) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Erhan Harcanan</span>
+                <span class="font-bold">{{ formatPlain(personTotals.erhan.harcanan) }}</span>
+              </div>
+              <div class="mt-2 pt-2 border-t border-slate-600 space-y-1">
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Erhan Altın Birikim(gr)</span>
+                  <span class="font-bold">{{ personTotals.erhan.altinBirikim.toFixed(2) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Erhan KTV Birikim</span>
+                  <span class="font-bold">0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 5. HÜLYA TABLOSU -->
+            <div class="bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Hülya Toplam Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.hulya.gelir) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#ffee00] text-black px-2 py-1.5 rounded font-black border border-amber-400">
+                <span>Hülya Net Kalan</span>
+                <span>{{ formatPlain(personTotals.hulya.netKalan) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Hülya Yatırım Gider</span>
+                <span class="font-bold">{{ formatPlain(personTotals.hulya.yatirimGider) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Hülya Yatırım Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.hulya.yatirimGelir) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Hülya Harcanan</span>
+                <span class="font-bold">{{ formatPlain(personTotals.hulya.harcanan) }}</span>
+              </div>
+              <div class="mt-2 pt-2 border-t border-slate-600 space-y-1">
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Hülya Altın Birikim(gr)</span>
+                  <span class="font-bold">{{ personTotals.hulya.altinBirikim.toFixed(2) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Hülya KTV Birikim</span>
+                  <span class="font-bold">0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 6. MAMİ (MUHAMMED) TABLOSU -->
+            <div class="bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Mami Toplam Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.mami.gelir) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#ffee00] text-black px-2 py-1.5 rounded font-black border border-amber-400">
+                <span>Mami Net Kalan</span>
+                <span>{{ formatPlain(personTotals.mami.netKalan) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Mami Yatırım Gider</span>
+                <span class="font-bold">{{ formatPlain(personTotals.mami.yatirimGider) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Mami Yatırım Gelir</span>
+                <span class="font-bold">{{ formatPlain(personTotals.mami.yatirimGelir) }}</span>
+              </div>
+              <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                <span>Mami Harcanan</span>
+                <span class="font-bold">{{ formatPlain(personTotals.mami.harcanan) }}</span>
+              </div>
+              <div class="mt-2 pt-2 border-t border-slate-600 space-y-1">
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Mami Altın Birikim(gr)</span>
+                  <span class="font-bold">{{ personTotals.mami.altinBirikim.toFixed(2) }}</span>
+                </div>
+                <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
+                  <span>Durum</span>
+                  <span class="font-bold text-amber-300">Borç Takibine Bağlı</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- TAB 2: Varlık İşlemleri -->
+        <div v-show="mercanTab === 'varlik'" class="p-4 sm:p-6 space-y-6">
+          <form @submit.prevent="addAssetTransaction" class="grid grid-cols-2 md:grid-cols-7 gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200 items-end">
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Tarih</label><input type="date" v-model="newAsset.transaction_date" required class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Varlık</label><select v-model="newAsset.asset_type" class="w-full text-xs p-2 border rounded bg-white"><option value="ALTIN">Altın (gr)</option><option value="USD">Dolar ($)</option><option value="KTV">KTV Fon</option></select></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">İşlem</label><select v-model="newAsset.trade_type" class="w-full text-xs p-2 border rounded bg-white"><option value="ALIS">Alış</option><option value="SATIS">Satış</option></select></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Miktar</label><input type="number" step="any" v-model.number="newAsset.amount" placeholder="Örn: 10" required class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Toplam Tutar (₺)</label><input type="number" step="any" v-model.number="newAsset.total_try" placeholder="Örn: 65000" required class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Kime / Kimden</label><input type="text" v-model="newAsset.target_person" placeholder="Hilal / Erhan / Ortak" class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium p-2 rounded transition-colors">+ Kaydet</button></div>
+          </form>
+
+          <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+            <span class="text-xs font-bold text-slate-600">İşlem Listesi ({{ filteredAssets.length }} / {{ assetList.length }} Kayıt)</span>
+            <button @click="resetFilters('asset')" class="text-xs text-indigo-600 hover:underline font-semibold">Filtreleri Temizle</button>
+          </div>
+
+          <div class="overflow-x-auto max-h-[500px]">
+            <table class="w-full text-left text-xs text-slate-600">
+              <thead class="bg-slate-100 text-slate-700 uppercase font-semibold sticky top-0">
+                <tr>
+                  <th @click="setSort('asset', 'transaction_date')" class="p-2.5 sortable">Tarih {{ getSortIcon('asset', 'transaction_date') }}</th>
+                  <th @click="setSort('asset', 'asset_type')" class="p-2.5 sortable">Varlık {{ getSortIcon('asset', 'asset_type') }}</th>
+                  <th @click="setSort('asset', 'trade_type')" class="p-2.5 sortable">Tür {{ getSortIcon('asset', 'trade_type') }}</th>
+                  <th @click="setSort('asset', 'amount')" class="p-2.5 sortable text-right">Miktar {{ getSortIcon('asset', 'amount') }}</th>
+                  <th @click="setSort('asset', 'total_try')" class="p-2.5 sortable text-right">Tutar {{ getSortIcon('asset', 'total_try') }}</th>
+                  <th class="p-2.5 text-right">Birim Fiyat</th>
+                  <th @click="setSort('asset', 'target_person')" class="p-2.5 sortable">Kişi {{ getSortIcon('asset', 'target_person') }}</th>
+                  <th class="p-2.5 text-center">İşlem</th>
+                </tr>
+                <tr class="bg-slate-50 border-t border-slate-200">
+                  <th class="p-1"><input type="text" v-model="colFilters.asset.transaction_date" placeholder="Filtrele..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.asset.asset_type" placeholder="Filtrele..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.asset.trade_type" placeholder="Filtrele..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.asset.amount" placeholder="Miktar..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.asset.total_try" placeholder="Tutar..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                  <th class="p-1"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.asset.target_person" placeholder="Kişi..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200">
+                <tr v-for="item in filteredAssets" :key="item.id" class="hover:bg-slate-50">
+                  <td class="p-2.5">{{ item.transaction_date }}</td>
+                  <td class="p-2.5 font-bold">{{ item.asset_type }}</td>
+                  <td class="p-2.5"><span :class="item.trade_type === 'ALIS' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'" class="px-2 py-0.5 rounded font-bold text-[10px]">{{ item.trade_type }}</span></td>
+                  <td class="p-2.5 text-right font-mono">{{ Number(item.amount).toFixed(2) }}</td>
+                  <td class="p-2.5 text-right font-mono font-medium">{{ formatMoney(item.total_try) }}</td>
+                  <td class="p-2.5 text-right font-mono text-slate-400">
+                    {{ Number(item.amount) > 0 ? (Number(item.total_try) / Number(item.amount)).toFixed(2) : '0.00' }} ₺
+                  </td>
+                  <td class="p-2.5 font-medium">{{ item.target_person || '-' }}</td>
+                  <td class="p-2.5 text-center space-x-1.5 whitespace-nowrap">
+                    <button @click="openEditModal('asset_transactions', item)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <span class="text-slate-300">|</span>
+                    <button @click="deleteRow('asset_transactions', item.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 3: Nakit Akışı -->
+        <div v-show="mercanTab === 'nakit'" class="p-4 sm:p-6 space-y-6">
+          <form @submit.prevent="addCashTransaction" class="grid grid-cols-2 md:grid-cols-6 gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200 items-end">
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Tarih</label><input type="date" v-model="newCash.transaction_date" required class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Akış Türü</label><select v-model="newCash.type" class="w-full text-xs p-2 border rounded bg-white"><option value="GELIR">Gelen Para (+)</option><option value="GIDER">Giden Para (-)</option></select></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Açıklama</label><input type="text" v-model="newCash.title" placeholder="Açıklama" required class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="newCash.amount" placeholder="0.00" required class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Kategori / Kişi</label><input type="text" v-model="newCash.category" placeholder="Örn: erhan giden, emekli, eski" required class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium p-2 rounded transition-colors">+ Kaydet</button></div>
+          </form>
+
+          <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+            <span class="text-xs font-bold text-slate-600">Nakit Hareketleri ({{ filteredCash.length }} / {{ cashList.length }} Kayıt)</span>
+            <button @click="resetFilters('cash')" class="text-xs text-indigo-600 hover:underline font-semibold">Filtreleri Temizle</button>
+          </div>
+
+          <div class="overflow-x-auto max-h-[500px]">
+            <table class="w-full text-left text-xs text-slate-600">
+              <thead class="bg-slate-100 text-slate-700 uppercase font-semibold sticky top-0">
+                <tr>
+                  <th @click="setSort('cash', 'transaction_date')" class="p-2.5 sortable">Tarih {{ getSortIcon('cash', 'transaction_date') }}</th>
+                  <th @click="setSort('cash', 'type')" class="p-2.5 sortable">Tür {{ getSortIcon('cash', 'type') }}</th>
+                  <th @click="setSort('cash', 'title')" class="p-2.5 sortable">Açıklama {{ getSortIcon('cash', 'title') }}</th>
+                  <th @click="setSort('cash', 'amount')" class="p-2.5 sortable text-right">Tutar {{ getSortIcon('cash', 'amount') }}</th>
+                  <th @click="setSort('cash', 'category')" class="p-2.5 sortable">Kategori {{ getSortIcon('cash', 'category') }}</th>
+                  <th class="p-2.5 text-center">İşlem</th>
+                </tr>
+                <tr class="bg-slate-50 border-t border-slate-200">
+                  <th class="p-1"><input type="text" v-model="colFilters.cash.transaction_date" placeholder="Filtrele..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.cash.type" placeholder="Tür..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.cash.title" placeholder="Açıklama..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.cash.amount" placeholder="Tutar..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.cash.category" placeholder="Kategori..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200">
+                <tr v-for="item in filteredCash" :key="item.id" class="hover:bg-slate-50">
+                  <td class="p-2.5">{{ item.transaction_date }}</td>
+                  <td class="p-2.5 font-bold" :class="item.type === 'GELIR' ? 'text-emerald-600' : 'text-rose-600'">{{ item.type }}</td>
+                  <td class="p-2.5 font-medium text-slate-800">{{ item.title }}</td>
+                  <td class="p-2.5 text-right font-mono font-semibold" :class="item.type === 'GELIR' ? 'text-emerald-600' : 'text-rose-600'">{{ item.type === 'GELIR' ? '+' : '-' }}{{ formatMoney(item.amount) }}</td>
+                  <td class="p-2.5 text-slate-500 font-medium">{{ item.category }}</td>
+                  <td class="p-2.5 text-center space-x-1.5 whitespace-nowrap">
+                    <button @click="openEditModal('cash_transactions', item)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <span class="text-slate-300">|</span>
+                    <button @click="deleteRow('cash_transactions', item.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 4: EVDEKİ LİSTE (4 Kolonlu) -->
+        <div v-show="mercanTab === 'evdeki'" class="p-4 sm:p-6 space-y-6">
+          <div class="bg-amber-50/70 border border-amber-200 p-3 rounded-lg flex items-center justify-between text-xs text-amber-900">
+            <span>🏠 <strong>Evdeki Varlıklar:</strong> Çeyrek altın, bilezik ve evde fiziki muhafaza edilen varlıkların güncel listesi.</span>
+            <button @click="resetFilters('home')" class="text-xs text-amber-700 hover:underline font-semibold">Filtreleri Temizle</button>
+          </div>
+
+          <form @submit.prevent="addHomeAsset" class="grid grid-cols-2 md:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200 items-end">
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Kimin</label><input type="text" v-model="newHomeAsset.owner_name" placeholder="Örn: Erhan, Mercan, Hülya" required class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Tür</label><input type="text" v-model="newHomeAsset.asset_type" placeholder="Örn: 22 Ayar Bilezik, Çeyrek Altın" required class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Birim</label><select v-model="newHomeAsset.unit" class="w-full text-xs p-2 border rounded bg-white"><option value="Adet">Adet</option><option value="Gram">Gram</option></select></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Miktar</label><input type="number" step="any" v-model.number="newHomeAsset.amount" placeholder="Örn: 4, 11, 48" required class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium p-2 rounded transition-colors shadow-sm">+ Varlık Ekle</button></div>
+          </form>
+
+          <div class="overflow-x-auto max-h-[500px]">
+            <table class="w-full text-left text-xs text-slate-600">
+              <thead class="bg-slate-100 text-slate-700 uppercase font-semibold sticky top-0">
+                <tr>
+                  <th @click="setSort('home', 'owner_name')" class="p-3 sortable">Kimin {{ getSortIcon('home', 'owner_name') }}</th>
+                  <th @click="setSort('home', 'asset_type')" class="p-3 sortable">Tür {{ getSortIcon('home', 'asset_type') }}</th>
+                  <th @click="setSort('home', 'unit')" class="p-3 sortable">Birim {{ getSortIcon('home', 'unit') }}</th>
+                  <th @click="setSort('home', 'amount')" class="p-3 sortable text-right">Miktar {{ getSortIcon('home', 'amount') }}</th>
+                  <th class="p-3 text-center">İşlem</th>
+                </tr>
+                <tr class="bg-slate-50 border-t border-slate-200">
+                  <th class="p-1"><input type="text" v-model="colFilters.home.owner_name" placeholder="Kişi..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.home.asset_type" placeholder="Tür..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.home.unit" placeholder="Birim..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.home.amount" placeholder="Miktar..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                  <th class="p-1"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200">
+                <tr v-for="item in filteredHomeAssets" :key="item.id" class="hover:bg-slate-50">
+                  <td class="p-3 font-bold text-slate-800">{{ item.owner_name }}</td>
+                  <td class="p-3 font-medium">{{ item.asset_type }}</td>
+                  <td class="p-3"><span class="px-2 py-0.5 rounded text-[11px] font-semibold" :class="item.unit === 'Gram' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-800'">{{ item.unit }}</span></td>
+                  <td class="p-3 text-right font-mono font-bold text-sm text-slate-900">{{ Number(item.amount).toLocaleString('tr-TR') }}</td>
+                  <td class="p-3 text-center space-x-2 whitespace-nowrap">
+                    <button @click="openEditModal('home_assets', item)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <span class="text-slate-300">|</span>
+                    <button @click="deleteRow('home_assets', item.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ==================== MODÜL 2: MUHAMMED ==================== -->
+    <div v-show="mainModule === 'muhammed'" class="space-y-6">
+
+      <!-- Muhammed Dinamik Özet Kartları -->
+      <section class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <!-- 1. Hesaptaki Bilgiler -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-indigo-200 bg-indigo-50/30">
+          <p class="text-xs font-semibold uppercase text-indigo-700">HESAPTAKİ BİLGİLER</p>
+          <div class="mt-3 space-y-2 text-xs font-mono">
+            <div class="flex justify-between gap-3">
+              <span class="text-slate-600">Ödenen TL:</span>
+              <span class="font-bold text-emerald-700">{{ formatMoney(muhammedAccountSummary.odenenTL) }}</span>
+            </div>
+            <div class="flex justify-between gap-3">
+              <span class="text-slate-600">Kriz Sonrasından Kalan TL:</span>
+              <span class="font-bold text-slate-800">{{ formatMoney(muhammedAccountSummary.krizSonrasindanKalanTL) }}</span>
+            </div>
+            <div class="flex justify-between gap-3">
+              <span class="text-slate-600">Kriz Sonrası Ödemelerden Kalan TL:</span>
+              <span class="font-bold text-slate-800">{{ formatMoney(muhammedAccountSummary.krizSonrasiOdemelerdenKalanTL) }}</span>
+            </div>
+            <div class="flex justify-between gap-3 border-t border-indigo-200 pt-2 text-indigo-800">
+              <span class="font-semibold">Hesapta Kalan TL:</span>
+              <span class="font-black">{{ formatMoney(muhammedAccountSummary.hesaptaKalanTL) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Kriz Öncesi Borç -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <p class="text-xs font-semibold uppercase text-slate-400">Kriz Öncesi Borç</p>
+          <p class="text-xl font-bold mt-1 text-slate-800">{{ formatMoney(muhammedSummary.krizOncesiBorc) }}</p>
+          <p class="text-xs text-emerald-600 font-semibold mt-1">Ödeme Tamamlandı (%100)</p>
+        </div>
+
+        <!-- 2. Kriz Sonrası TL -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <div class="flex justify-between items-center">
+            <p class="text-xs font-semibold uppercase text-slate-400">Kriz Sonrası TL</p>
+            <span class="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold font-mono">
+              Kalan: {{ formatMoney(muhammedSummary.krizSonrasiTL.kalan) }}
+            </span>
+          </div>
+          <p class="text-xl font-bold mt-1 text-slate-800 font-mono">{{ formatMoney(muhammedSummary.krizSonrasiTL.toplam) }}</p>
+          <p class="text-xs text-slate-500 mt-1 font-mono">Ödenen: {{ formatMoney(muhammedSummary.krizSonrasiTL.odenen) }}</p>
+        </div>
+
+        <!-- 3. Kriz Sonrası Altın -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <div class="flex justify-between items-center">
+            <p class="text-xs font-semibold uppercase text-amber-600">Altın Borcu</p>
+            <span class="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold font-mono">
+              Kalan: {{ muhammedSummary.altinBorcu.kalan.toFixed(2) }} gr
+            </span>
+          </div>
+          <p class="text-xl font-bold mt-1 text-slate-800 font-mono">{{ muhammedSummary.altinBorcu.toplam.toFixed(2) }} gr</p>
+          <p class="text-xs text-slate-500 mt-1 font-mono">Ödenen: {{ muhammedSummary.altinBorcu.odenen.toFixed(2) }} gr</p>
+        </div>
+
+        <!-- 4. Kriz Sonrası Dolar -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <div class="flex justify-between items-center">
+            <p class="text-xs font-semibold uppercase text-emerald-600">Dolar Borcu</p>
+            <span class="text-xs bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded font-bold font-mono">
+              Kalan: ${{ muhammedSummary.dolarBorcu.kalan.toFixed(0) }}
+            </span>
+          </div>
+          <p class="text-xl font-bold mt-1 text-slate-800 font-mono">${{ muhammedSummary.dolarBorcu.toplam.toFixed(0) }}</p>
+          <p class="text-xs text-slate-500 mt-1 font-mono">Ödenen: ${{ muhammedSummary.dolarBorcu.odenen.toFixed(0) }}</p>
+        </div>
+
+      </section>
+
+      <!-- Muhammed Tabloları -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- 1. Gelen Paralar (Maaş / Tren) -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
+          <div class="flex justify-between items-center border-b pb-2">
+            <h2 class="text-sm font-bold text-slate-800">📥 Gelen Paralar (Maaş / Tren)</h2>
+            <div class="space-x-2">
+              <span class="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-mono">Toplam: {{ formatMoney(muhammedTotalIncome) }}</span>
+              <button @click="resetFilters('income')" class="text-xs text-indigo-600 hover:underline font-semibold">Sıfırla</button>
+            </div>
+          </div>
+
+          <form @submit.prevent="addMuhammedIncome" class="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 items-end text-xs">
+            <div><label class="block font-medium text-slate-600 mb-1">Tarih</label><input type="date" v-model="newMIncome.transaction_date" required class="w-full p-1.5 border rounded bg-white"></div>
+            <div><label class="block font-medium text-slate-600 mb-1">Kaynak</label><select v-model="newMIncome.source" class="w-full p-1.5 border rounded bg-white"><option value="Mami">Mami</option><option value="Tren">Tren</option></select></div>
+            <div><label class="block font-medium text-slate-600 mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="newMIncome.amount" placeholder="Örn: 32000" required class="w-full p-1.5 border rounded bg-white"></div>
+            <div><label class="block font-medium text-slate-600 mb-1">Kur / Fiyat</label><input type="number" step="any" v-model.number="newMIncome.gold_rate" placeholder="Altın Alış" class="w-full p-1.5 border rounded bg-white"></div>
+            <div><button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium p-1.5 rounded transition-colors">+ Kaydet</button></div>
+          </form>
+
+          <div class="overflow-x-auto max-h-[350px]">
+            <table class="w-full text-left text-xs text-slate-600">
+              <thead class="bg-slate-50 uppercase sticky top-0">
+                <tr>
+                  <th @click="setSort('income', 'transaction_date')" class="p-2 sortable">Tarih {{ getSortIcon('income', 'transaction_date') }}</th>
+                  <th @click="setSort('income', 'source')" class="p-2 sortable">Kaynak {{ getSortIcon('income', 'source') }}</th>
+                  <th @click="setSort('income', 'amount')" class="p-2 sortable text-right">Tutar {{ getSortIcon('income', 'amount') }}</th>
+                  <th class="p-2 text-right">Kur Fiyat</th>
+                  <th class="p-2 text-right">Ercan'a Altın</th>
+                  <th class="p-2 text-center">İşlem</th>
+                </tr>
+                <tr class="bg-slate-50 border-t border-slate-200">
+                  <th class="p-1"><input type="text" v-model="colFilters.income.transaction_date" placeholder="Tarih..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.income.source" placeholder="Kaynak..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.income.amount" placeholder="Tutar..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                  <th class="p-1"></th>
+                  <th class="p-1"></th>
+                  <th class="p-1"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-for="inc in filteredIncomes" :key="inc.id" class="hover:bg-slate-50">
+                  <td class="p-2">{{ inc.transaction_date }}</td>
+                  <td class="p-2 font-medium">{{ inc.source }}</td>
+                  <td class="p-2 text-right font-mono font-bold">{{ formatMoney(inc.amount) }}</td>
+                  <td class="p-2 text-right font-mono text-slate-400">{{ inc.gold_rate || '-' }}</td>
+                  <td class="p-2 text-right font-mono text-amber-700">{{ inc.gold_debt_to_ercan ? inc.gold_debt_to_ercan + ' gr' : '-' }}</td>
+                  <td class="p-2 text-center space-x-1">
+                    <button @click="openEditModal('muhammed_incomes', inc)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <span class="text-slate-300">|</span>
+                    <button @click="deleteRow('muhammed_incomes', inc.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 2. Yapılan Ödemeler -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
+          <div class="flex justify-between items-center border-b pb-2">
+            <h2 class="text-sm font-bold text-slate-800">📤 Yapılan Ödemeler</h2>
+            <div class="space-x-2">
+              <span class="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-mono">Toplam: {{ formatMoney(muhammedTotalPayment) }}</span>
+              <button @click="resetFilters('payment')" class="text-xs text-indigo-600 hover:underline font-semibold">Sıfırla</button>
+            </div>
+          </div>
+
+          <form @submit.prevent="addMuhammedPayment" class="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 items-end text-xs">
+            <div><label class="block font-medium text-slate-600 mb-1">Tarih</label><input type="date" v-model="newMPayment.payment_date" required class="w-full p-1.5 border rounded bg-white"></div>
+            <div><label class="block font-medium text-slate-600 mb-1">Kime</label><input type="text" v-model="newMPayment.target_person" placeholder="Örn: Tahir" required class="w-full p-1.5 border rounded bg-white"></div>
+            <div><label class="block font-medium text-slate-600 mb-1">Birim</label><select v-model="newMPayment.currency" class="w-full p-1.5 border rounded bg-white"><option value="TL">TL (₺)</option><option value="ALTIN_GR">Altın (gr)</option><option value="USD">Dolar ($)</option></select></div>
+            <div><label class="block font-medium text-slate-600 mb-1">Miktar</label><input type="number" step="any" v-model.number="newMPayment.amount" placeholder="Örn: 4.00" required class="w-full p-1.5 border rounded bg-white"></div>
+            <div><label class="block font-medium text-slate-600 mb-1">TL Karşılık</label><input type="number" step="any" v-model.number="newPaymentAmountTry" :readonly="newMPayment.currency === 'TL'" placeholder="Ödeme tutarı (₺)" required class="w-full p-1.5 border rounded bg-white"></div>
+            <div><button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium p-1.5 rounded transition-colors">+ Kaydet</button></div>
+          </form>
+
+          <div class="overflow-x-auto max-h-[350px]">
+            <table class="w-full text-left text-xs text-slate-600">
+              <thead class="bg-slate-50 uppercase sticky top-0">
+                <tr>
+                  <th @click="setSort('payment', 'payment_date')" class="p-2 sortable">Tarih {{ getSortIcon('payment', 'payment_date') }}</th>
+                  <th @click="setSort('payment', 'target_person')" class="p-2 sortable">Kime {{ getSortIcon('payment', 'target_person') }}</th>
+                  <th @click="setSort('payment', 'amount')" class="p-2 sortable text-right">Miktar {{ getSortIcon('payment', 'amount') }}</th>
+                  <th @click="setSort('payment', 'amount_try')" class="p-2 sortable text-right">TL Karşılık {{ getSortIcon('payment', 'amount_try') }}</th>
+                  <th class="p-2 text-right">Birim Fiyat</th>
+                  <th class="p-2 text-center">İşlem</th>
+                </tr>
+                <tr class="bg-slate-50 border-t border-slate-200">
+                  <th class="p-1"><input type="text" v-model="colFilters.payment.payment_date" placeholder="Tarih..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.payment.target_person" placeholder="Kime..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.payment.amount" placeholder="Miktar..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.payment.amount_try" placeholder="Tutar..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                  <th class="p-1"></th>
+                  <th class="p-1"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-for="pay in filteredPayments" :key="pay.id" class="hover:bg-slate-50">
+                  <td class="p-2">{{ pay.payment_date }}</td>
+                  <td class="p-2 font-semibold text-slate-800">{{ pay.target_person }}</td>
+                  <td class="p-2 text-right font-mono">{{ pay.amount }} {{ pay.currency === 'ALTIN_GR' ? 'gr' : (pay.currency === 'TL' ? '₺' : '$') }}</td>
+                  <td class="p-2 text-right font-mono font-bold text-emerald-600">{{ formatMoney(pay.amount_try) }}</td>
+                  <td class="p-2 text-right font-mono text-slate-400">{{ paymentUnitPrice(pay) === null ? '-' : formatMoney(paymentUnitPrice(pay)) }}</td>
+                  <td class="p-2 text-center space-x-1">
+                    <button @click="openEditModal('muhammed_payments', pay)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <span class="text-slate-300">|</span>
+                    <button @click="deleteRow('muhammed_payments', pay.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 3. Alacaklı / Borç Durum Tablosu -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="text-sm font-bold text-slate-800">⚖️ Kriz Sonrası Borç Tasfiye Tablosu (15.07.2025 Sonrası)</h2>
+          <span class="text-xs bg-amber-50 text-amber-800 px-2 py-0.5 rounded border border-amber-200 font-medium">Aktif Borç Tasfiyesi</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-100 uppercase text-slate-700">
+              <tr>
+                <th @click="setSort('debtAfter', 'creditor')" class="p-2.5 sortable">Alacaklı {{ getSortIcon('debtAfter', 'creditor') }}</th>
+                <th class="p-2.5 text-right">Borç Miktar</th>
+                <th @click="setSort('debtAfter', 'debt_try')" class="p-2.5 sortable text-right">Borç (TL) {{ getSortIcon('debtAfter', 'debt_try') }}</th>
+                <th @click="setSort('debtAfter', 'paid_amount')" class="p-2.5 sortable text-right text-indigo-700 font-bold">Ödenen Miktar {{ getSortIcon('debtAfter', 'paid_amount') }}</th>
+                <th @click="setSort('debtAfter', 'remaining_amount')" class="p-2.5 sortable text-right text-rose-700 font-bold">Kalan Miktar {{ getSortIcon('debtAfter', 'remaining_amount') }}</th>
+                <th @click="setSort('debtAfter', 'paid_try')" class="p-2.5 sortable text-right">Ödenen (TL) {{ getSortIcon('debtAfter', 'paid_try') }}</th>
+                <th @click="setSort('debtAfter', 'status')" class="p-2.5 sortable">Durum {{ getSortIcon('debtAfter', 'status') }}</th>
+                <th class="p-2.5">Açıklama</th>
+                <th class="p-2.5 text-center">İşlem</th>
+              </tr>
+              <tr class="bg-slate-50 border-t border-slate-200">
+                <th class="p-1"><input type="text" v-model="colFilters.debtAfter.creditor" placeholder="Alacaklı..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                <th class="p-1"></th>
+                <th class="p-1"><input type="text" v-model="colFilters.debtAfter.debt_try" placeholder="Borç..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                <th class="p-1"><input type="text" v-model="colFilters.debtAfter.paid_amount" placeholder="Ödenen..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                <th class="p-1"><input type="text" v-model="colFilters.debtAfter.remaining_amount" placeholder="Kalan..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                <th class="p-1"><input type="text" v-model="colFilters.debtAfter.paid_try" placeholder="TL..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                <th class="p-1"><input type="text" v-model="colFilters.debtAfter.status" placeholder="Durum..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                <th class="p-1"></th>
+                <th class="p-1"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <tr v-for="d in filteredDebtsAfter" :key="d.id" class="hover:bg-slate-50">
+                <td class="p-2.5 font-bold text-slate-800">{{ d.creditor }}</td>
+                <td class="p-2.5 text-right font-mono">{{ d.debt_amount }} {{ d.currency === 'ALTIN_GR' ? 'gr' : (d.currency === 'TL' ? '₺' : '$') }}</td>
+                <td class="p-2.5 text-right font-mono font-semibold">{{ formatMoney(d.debt_try) }}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-indigo-700">
+                  {{ Number(d.paid_amount || 0).toLocaleString('tr-TR', { maximumFractionDigits: 2 }) }} {{ d.currency === 'ALTIN_GR' ? 'gr' : (d.currency === 'TL' ? '₺' : '$') }}
+                </td>
+                <td class="p-2.5 text-right font-mono font-bold text-rose-700 bg-rose-50/50">
+                  {{ Number(d.remaining_amount || 0).toLocaleString('tr-TR', { maximumFractionDigits: 2 }) }} {{ d.currency === 'ALTIN_GR' ? 'gr' : (d.currency === 'TL' ? '₺' : '$') }}
+                </td>
+                <td class="p-2.5 text-right font-mono font-semibold text-emerald-600">{{ formatMoney(d.paid_try) }}</td>
+                <td class="p-2.5">
+                  <span :class="{
+                    'bg-emerald-100 text-emerald-800': d.status === 'Ödeme Bitti',
+                    'bg-amber-100 text-amber-800': d.status === 'Ödeme Devam Ediyor',
+                    'bg-rose-100 text-rose-800': d.status === 'Ödeme Başlamadı',
+                    'bg-slate-100 text-slate-600': d.status === 'Ödenmeyecek'
+                  }" class="px-2 py-0.5 rounded font-bold text-[10px]">
+                    {{ d.status }}
+                  </span>
+                </td>
+                <td class="p-2.5 text-slate-500">{{ d.note || '-' }}</td>
+                <td class="p-2.5 text-center space-x-1.5 whitespace-nowrap">
+                  <button @click="openEditModal('muhammed_debts', d)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                  <span class="text-slate-300">|</span>
+                  <button @click="deleteRow('muhammed_debts', d.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 4. Kriz Öncesi Borç Tasfiye Tablosu -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
+        <div class="flex justify-between items-center border-b pb-2">
+          <div>
+            <h2 class="text-sm font-bold text-slate-800">🏛️ Kriz Öncesi Borç Tablosu (15.07.2025 Öncesi Kapatılanlar)</h2>
+            <p class="text-[11px] text-slate-500">Bankalar, elden borçlar ve kapatılan krediler</p>
+          </div>
+          <span class="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold">
+            Toplam: {{ formatMoney(krizOncesiTotal) }} (%100 Kapatıldı)
+          </span>
+        </div>
+
+        <div class="overflow-x-auto max-h-[450px]">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-100 uppercase text-slate-700 sticky top-0">
+              <tr>
+                <th @click="setSort('debtBefore', 'creditor')" class="p-2.5 sortable">Alacaklı {{ getSortIcon('debtBefore', 'creditor') }}</th>
+                <th class="p-2.5">Borç Tipi</th>
+                <th @click="setSort('debtBefore', 'debt_try')" class="p-2.5 sortable text-right">Borç Tutar {{ getSortIcon('debtBefore', 'debt_try') }}</th>
+                <th @click="setSort('debtBefore', 'paid_try')" class="p-2.5 sortable text-right">Ödenen Tutar {{ getSortIcon('debtBefore', 'paid_try') }}</th>
+                <th class="p-2.5">Borç Durum</th>
+                <th class="p-2.5">Hesap Durum</th>
+                <th class="p-2.5">Not</th>
+                <th class="p-2.5 text-center">İşlem</th>
+              </tr>
+              <tr class="bg-slate-50 border-t border-slate-200">
+                <th class="p-1"><input type="text" v-model="colFilters.debtBefore.creditor" placeholder="Alacaklı..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                <th class="p-1"></th>
+                <th class="p-1"><input type="text" v-model="colFilters.debtBefore.debt_try" placeholder="Borç..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                <th class="p-1"><input type="text" v-model="colFilters.debtBefore.paid_try" placeholder="Ödenen..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                <th class="p-1"></th>
+                <th class="p-1"></th>
+                <th class="p-1"></th>
+                <th class="p-1"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <tr v-for="d in filteredDebtsBefore" :key="d.id" class="hover:bg-slate-50">
+                <td class="p-2.5 font-bold text-slate-800">{{ d.creditor }}</td>
+                <td class="p-2.5 font-medium">{{ d.currency || 'Kredi/TL' }}</td>
+                <td class="p-2.5 text-right font-mono font-semibold text-slate-700">{{ formatMoney(d.debt_try) }}</td>
+                <td class="p-2.5 text-right font-mono font-semibold text-emerald-600">{{ formatMoney(d.paid_try) }}</td>
+                <td class="p-2.5"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold text-[10px]">{{ d.status }}</span></td>
+                <td class="p-2.5"><span :class="d.account_status === 'Hesaplar Kapalı' ? 'text-slate-500' : 'text-amber-700 font-semibold'">{{ d.account_status || '-' }}</span></td>
+                <td class="p-2.5 text-slate-500 max-w-xs truncate" :title="d.note">{{ d.note || '-' }}</td>
+                <td class="p-2.5 text-center space-x-1.5 whitespace-nowrap">
+                  <button @click="openEditModal('muhammed_debts', d)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                  <span class="text-slate-300">|</span>
+                  <button @click="deleteRow('muhammed_debts', d.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==================== MODÜL 3: ÇOCUKLAR ==================== -->
+    <div v-show="mainModule === 'cocuklar'" class="space-y-6">
+
+      <!-- Çocuklar Özet Kartları -->
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+        <!-- Bende Net Kalan -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase text-slate-400">Bende Net Kalan (Nakit)</p>
+            <p class="text-2xl font-bold mt-1 text-emerald-600 font-mono">
+              {{ formatMoney(childrenSummary.netCash) }}
+            </p>
+          </div>
+          <div class="pt-2 border-t border-slate-100 text-[11px] text-slate-500 space-y-0.5">
+            <div class="flex justify-between"><span>Toplam Gelir:</span><span class="font-medium font-mono text-slate-700">{{ formatMoney(childrenSummary.totalIncome) }}</span></div>
+            <div class="flex justify-between"><span>Toplam Harcanan:</span><span class="font-medium font-mono text-slate-700">{{ formatMoney(childrenSummary.totalExpense) }}</span></div>
+            <div class="flex justify-between text-amber-700 font-medium"><span>Toplam Altın Alımı:</span><span class="font-mono">{{ formatMoney(childrenSummary.totalGoldInvestment) }}</span></div>
+          </div>
+        </div>
+
+        <!-- 1. EMİR KARTI -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center">
+              <p class="text-xs font-bold uppercase text-slate-800">Emir</p>
+              <span class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded font-mono">
+                {{ childrenTotals.emir.gold.toFixed(3) }} gr Altın
+              </span>
+            </div>
+            <div class="mt-2 flex justify-between items-baseline">
+              <span class="text-xs text-slate-500">Nakit Kalan:</span>
+              <span class="text-lg font-bold font-mono" :class="childrenTotals.emir.net >= 0 ? 'text-slate-800' : 'text-red-600'">
+                {{ formatMoney(childrenTotals.emir.net) }}
+              </span>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-slate-100 text-[11px] text-slate-500 space-y-1">
+            <div class="flex justify-between text-amber-900 font-medium bg-amber-50/60 px-1.5 py-0.5 rounded">
+              <span>Satılsa Değeri:</span>
+              <span class="font-mono font-bold">{{ formatMoney(childrenTotals.emir.currentGoldVal) }}</span>
+            </div>
+            <div class="flex justify-between px-1.5">
+              <span>Yatırım Kârı:</span>
+              <span class="font-mono font-bold" :class="childrenTotals.emir.goldPnl >= 0 ? 'text-emerald-600' : 'text-rose-600'">
+                {{ childrenTotals.emir.goldPnl >= 0 ? '+' : '' }}{{ formatMoney(childrenTotals.emir.goldPnl) }}
+              </span>
+            </div>
+            <div class="flex justify-between px-1.5 text-slate-400">
+              <span>Alış Maliyeti:</span>
+              <span class="font-mono">{{ formatMoney(childrenTotals.emir.investment) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. DAMLA KARTI -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center">
+              <p class="text-xs font-bold uppercase text-slate-800">Damla</p>
+              <span class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded font-mono">
+                {{ childrenTotals.damla.gold.toFixed(3) }} gr Altın
+              </span>
+            </div>
+            <div class="mt-2 flex justify-between items-baseline">
+              <span class="text-xs text-slate-500">Nakit Kalan:</span>
+              <span class="text-lg font-bold font-mono" :class="childrenTotals.damla.net >= 0 ? 'text-slate-800' : 'text-red-600'">
+                {{ formatMoney(childrenTotals.damla.net) }}
+              </span>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-slate-100 text-[11px] text-slate-500 space-y-1">
+            <div class="flex justify-between text-amber-900 font-medium bg-amber-50/60 px-1.5 py-0.5 rounded">
+              <span>Satılsa Değeri:</span>
+              <span class="font-mono font-bold">{{ formatMoney(childrenTotals.damla.currentGoldVal) }}</span>
+            </div>
+            <div class="flex justify-between px-1.5">
+              <span>Yatırım Kârı:</span>
+              <span class="font-mono font-bold" :class="childrenTotals.damla.goldPnl >= 0 ? 'text-emerald-600' : 'text-rose-600'">
+                {{ childrenTotals.damla.goldPnl >= 0 ? '+' : '' }}{{ formatMoney(childrenTotals.damla.goldPnl) }}
+              </span>
+            </div>
+            <div class="flex justify-between px-1.5 text-slate-400">
+              <span>Alış Maliyeti:</span>
+              <span class="font-mono">{{ formatMoney(childrenTotals.damla.investment) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. YUSUF KARTI -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center">
+              <p class="text-xs font-bold uppercase text-slate-800">Yusuf</p>
+              <span class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded font-mono">
+                {{ childrenTotals.yusuf.gold.toFixed(3) }} gr Altın
+              </span>
+            </div>
+            <div class="mt-2 flex justify-between items-baseline">
+              <span class="text-xs text-slate-500">Nakit Kalan:</span>
+              <span class="text-lg font-bold font-mono text-emerald-600">
+                {{ formatMoney(childrenTotals.yusuf.net) }}
+              </span>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-slate-100 text-[11px] text-slate-500 space-y-1">
+            <div class="flex justify-between text-amber-900 font-medium bg-amber-50/60 px-1.5 py-0.5 rounded">
+              <span>Satılsa Değeri:</span>
+              <span class="font-mono font-bold">{{ formatMoney(childrenTotals.yusuf.currentGoldVal) }}</span>
+            </div>
+            <div class="flex justify-between px-1.5">
+              <span>Yatırım Kârı:</span>
+              <span class="font-mono font-bold" :class="childrenTotals.yusuf.goldPnl >= 0 ? 'text-emerald-600' : 'text-rose-600'">
+                {{ childrenTotals.yusuf.goldPnl >= 0 ? '+' : '' }}{{ formatMoney(childrenTotals.yusuf.goldPnl) }}
+              </span>
+            </div>
+            <div class="flex justify-between px-1.5 text-slate-400">
+              <span>Alış Maliyeti:</span>
+              <span class="font-mono">{{ formatMoney(childrenTotals.yusuf.investment) }}</span>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Çocuklar Tabloları -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Harçlık & Harcamalar -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
+          <div class="flex justify-between items-center border-b pb-2">
+            <h2 class="text-sm font-bold text-slate-800">💵 Harçlık & Harcamalar ({{ filteredChildrenCash.length }} / {{ childrenCashList.length }} Kayıt)</h2>
+            <button @click="resetFilters('cCash')" class="text-xs text-indigo-600 hover:underline font-semibold">Filtreleri Sıfırla</button>
+          </div>
+
+          <form @submit.prevent="addChildCash" class="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 items-end text-xs">
+            <div><label class="block font-medium text-slate-600 mb-1">Tarih</label><input type="date" v-model="newChildCash.transaction_date" required class="w-full p-1.5 border rounded bg-white"></div>
+            <div>
+              <label class="block font-medium text-slate-600 mb-1">Kime</label>
+              <select v-model="newChildCash.child_name" class="w-full p-1.5 border rounded bg-white font-semibold">
+                <option value="Damla">Damla</option><option value="Yusuf">Yusuf</option><option value="Emir">Emir</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-medium text-slate-600 mb-1">Tür</label>
+              <select v-model="newChildCash.type" class="w-full p-1.5 border rounded bg-white">
+                <option value="GELIR">Gelir / Harçlık (+)</option><option value="GIDER">Harcama (-)</option>
+              </select>
+            </div>
+            <div><label class="block font-medium text-slate-600 mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="newChildCash.amount" placeholder="Örn: 200" required class="w-full p-1.5 border rounded bg-white font-bold"></div>
+            <div><button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium p-1.5 rounded transition-colors shadow-sm">+ Kaydet</button></div>
+          </form>
+
+          <div class="overflow-x-auto max-h-[400px]">
+            <table class="w-full text-left text-xs text-slate-600">
+              <thead class="bg-slate-100 uppercase sticky top-0">
+                <tr>
+                  <th @click="setSort('cCash', 'transaction_date')" class="p-2 sortable">Tarih {{ getSortIcon('cCash', 'transaction_date') }}</th>
+                  <th @click="setSort('cCash', 'child_name')" class="p-2 sortable">Kime {{ getSortIcon('cCash', 'child_name') }}</th>
+                  <th class="p-2">Açıklama</th>
+                  <th @click="setSort('cCash', 'type')" class="p-2 sortable">Tür {{ getSortIcon('cCash', 'type') }}</th>
+                  <th @click="setSort('cCash', 'amount')" class="p-2 sortable text-right">Tutar {{ getSortIcon('cCash', 'amount') }}</th>
+                  <th class="p-2 text-center">İşlem</th>
+                </tr>
+                <tr class="bg-slate-50 border-t border-slate-200">
+                  <th class="p-1"><input type="text" v-model="colFilters.cCash.transaction_date" placeholder="Tarih..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.cCash.child_name" placeholder="Kişi..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.cCash.title" placeholder="Açıklama..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.cCash.type" placeholder="Tür..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.cCash.amount" placeholder="Tutar..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                  <th class="p-1"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-for="c in filteredChildrenCash" :key="c.id" class="hover:bg-slate-50">
+                  <td class="p-2">{{ c.transaction_date }}</td>
+                  <td class="p-2 font-bold text-slate-800">{{ c.child_name }}</td>
+                  <td class="p-2">{{ c.title }}</td>
+                  <td class="p-2"><span :class="c.type === 'GELIR' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'" class="px-1.5 py-0.5 rounded text-[10px] font-bold">{{ c.type }}</span></td>
+                  <td class="p-2 text-right font-mono font-bold" :class="c.type === 'GELIR' ? 'text-emerald-600' : 'text-rose-600'">{{ c.type === 'GELIR' ? '+' : '-' }}{{ formatMoney(c.amount) }}</td>
+                  <td class="p-2 text-center space-x-1 whitespace-nowrap">
+                    <button @click="openEditModal('children_cash', c)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <span class="text-slate-300">|</span>
+                    <button @click="deleteRow('children_cash', c.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Altın Birikimleri -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
+          <div class="flex justify-between items-center border-b pb-2">
+            <h2 class="text-sm font-bold text-slate-800">🪙 Altın Birikimleri ({{ filteredChildrenGold.length }} / {{ childrenGoldList.length }} Kayıt)</h2>
+            <button @click="resetFilters('cGold')" class="text-xs text-amber-700 hover:underline font-semibold">Filtreleri Sıfırla</button>
+          </div>
+
+          <form @submit.prevent="addChildGold" class="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 items-end text-xs">
+            <div><label class="block font-medium text-slate-600 mb-1">Tarih</label><input type="date" v-model="newChildGold.transaction_date" required class="w-full p-1.5 border rounded bg-white"></div>
+            <div>
+              <label class="block font-medium text-slate-600 mb-1">Kime</label>
+              <select v-model="newChildGold.child_name" class="w-full p-1.5 border rounded bg-white font-semibold">
+                <option value="Damla">Damla</option><option value="Yusuf">Yusuf</option><option value="Emir">Emir</option>
+              </select>
+            </div>
+            <div><label class="block font-medium text-slate-600 mb-1">Gram (gr)</label><input type="number" step="0.001" v-model.number="newChildGold.amount" placeholder="Örn: 0.240" required class="w-full p-1.5 border rounded bg-white font-mono font-bold"></div>
+            <div><label class="block font-medium text-slate-600 mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="newChildGold.total_try" placeholder="Örn: 1710" required class="w-full p-1.5 border rounded bg-white font-bold"></div>
+            <div><button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium p-1.5 rounded transition-colors shadow-sm">+ Altın Ekle</button></div>
+          </form>
+
+          <div class="overflow-x-auto max-h-[400px]">
+            <table class="w-full text-left text-xs text-slate-600">
+              <thead class="bg-slate-100 uppercase sticky top-0">
+                <tr>
+                  <th @click="setSort('cGold', 'transaction_date')" class="p-2 sortable">Tarih {{ getSortIcon('cGold', 'transaction_date') }}</th>
+                  <th @click="setSort('cGold', 'child_name')" class="p-2 sortable">Kime {{ getSortIcon('cGold', 'child_name') }}</th>
+                  <th @click="setSort('cGold', 'amount')" class="p-2 sortable text-right">Miktar {{ getSortIcon('cGold', 'amount') }}</th>
+                  <th @click="setSort('cGold', 'total_try')" class="p-2 sortable text-right">Tutar {{ getSortIcon('cGold', 'total_try') }}</th>
+                  <th class="p-2 text-right">Birim Fiyat</th>
+                  <th class="p-2 text-center">İşlem</th>
+                </tr>
+                <tr class="bg-slate-50 border-t border-slate-200">
+                  <th class="p-1"><input type="text" v-model="colFilters.cGold.transaction_date" placeholder="Tarih..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.cGold.child_name" placeholder="Kişi..." class="w-full text-[11px] p-1 border rounded bg-white font-normal"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.cGold.amount" placeholder="Gram..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                  <th class="p-1"><input type="text" v-model="colFilters.cGold.total_try" placeholder="Tutar..." class="w-full text-[11px] p-1 border rounded bg-white font-normal text-right"></th>
+                  <th class="p-1"></th>
+                  <th class="p-1"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-for="g in filteredChildrenGold" :key="g.id" class="hover:bg-slate-50">
+                  <td class="p-2">{{ g.transaction_date }}</td>
+                  <td class="p-2 font-bold text-slate-800">{{ g.child_name }}</td>
+                  <td class="p-2 text-right font-mono font-bold text-amber-700">{{ Number(g.amount).toFixed(3) }} gr</td>
+                  <td class="p-2 text-right font-mono font-semibold">{{ formatMoney(g.total_try) }}</td>
+                  <td class="p-2 text-right font-mono text-slate-400">{{ (Number(g.total_try) / (Number(g.amount) || 1)).toFixed(0) }} ₺</td>
+                  <td class="p-2 text-center space-x-1 whitespace-nowrap">
+                    <button @click="openEditModal('children_gold', g)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <span class="text-slate-300">|</span>
+                    <button @click="deleteRow('children_gold', g.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ==================== GÜNCELLEME MODAL PENCERESİ ==================== -->
+    <div v-if="editModal.isOpen" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h3 class="font-bold text-slate-800">Kaydı Güncelle</h3>
+          <button @click="editModal.isOpen = false" class="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+        </div>
+
+        <!-- 1. Varlık İşlemi Güncelleme -->
+        <div v-if="editModal.table === 'asset_transactions'" class="space-y-3 text-xs">
+          <div><label class="block font-medium mb-1">Tarih</label><input type="date" v-model="editModal.row.transaction_date" class="w-full p-2 border rounded"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="block font-medium mb-1">Varlık</label><select v-model="editModal.row.asset_type" class="w-full p-2 border rounded"><option value="ALTIN">Altın</option><option value="USD">USD</option><option value="KTV">KTV</option></select></div>
+            <div><label class="block font-medium mb-1">Tür</label><select v-model="editModal.row.trade_type" class="w-full p-2 border rounded"><option value="ALIS">ALIS</option><option value="SATIS">SATIS</option></select></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="block font-medium mb-1">Miktar</label><input type="number" step="any" v-model.number="editModal.row.amount" class="w-full p-2 border rounded"></div>
+            <div><label class="block font-medium mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="editModal.row.total_try" class="w-full p-2 border rounded"></div>
+          </div>
+          <div><label class="block font-medium mb-1">Kişi</label><input type="text" v-model="editModal.row.target_person" class="w-full p-2 border rounded"></div>
+        </div>
+
+        <!-- 2. Nakit Akışı Güncelleme -->
+        <div v-if="editModal.table === 'cash_transactions'" class="space-y-3 text-xs">
+          <div><label class="block font-medium mb-1">Tarih</label><input type="date" v-model="editModal.row.transaction_date" class="w-full p-2 border rounded"></div>
+          <div><label class="block font-medium mb-1">Akış Türü</label><select v-model="editModal.row.type" class="w-full p-2 border rounded"><option value="GELIR">GELIR</option><option value="GIDER">GIDER</option></select></div>
+          <div><label class="block font-medium mb-1">Açıklama</label><input type="text" v-model="editModal.row.title" class="w-full p-2 border rounded"></div>
+          <div><label class="block font-medium mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="editModal.row.amount" class="w-full p-2 border rounded"></div>
+          <div><label class="block font-medium mb-1">Kategori</label><input type="text" v-model="editModal.row.category" class="w-full p-2 border rounded"></div>
+        </div>
+
+        <!-- 3. EVDEKİ LİSTE GÜNCELLEME -->
+        <div v-if="editModal.table === 'home_assets'" class="space-y-3 text-xs">
+          <div><label class="block font-medium mb-1">Kimin</label><input type="text" v-model="editModal.row.owner_name" class="w-full p-2 border rounded"></div>
+          <div><label class="block font-medium mb-1">Tür</label><input type="text" v-model="editModal.row.asset_type" class="w-full p-2 border rounded"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="block font-medium mb-1">Birim</label><select v-model="editModal.row.unit" class="w-full p-2 border rounded"><option value="Adet">Adet</option><option value="Gram">Gram</option></select></div>
+            <div><label class="block font-medium mb-1">Miktar</label><input type="number" step="any" v-model.number="editModal.row.amount" class="w-full p-2 border rounded"></div>
+          </div>
+        </div>
+
+        <!-- 4. Çocuklar Nakit Güncelleme -->
+        <div v-if="editModal.table === 'children_cash'" class="space-y-3 text-xs">
+          <div><label class="block font-medium mb-1">Tarih</label><input type="date" v-model="editModal.row.transaction_date" class="w-full p-2 border rounded"></div>
+          <div><label class="block font-medium mb-1">Kime</label><select v-model="editModal.row.child_name" class="w-full p-2 border rounded font-semibold"><option value="Damla">Damla</option><option value="Yusuf">Yusuf</option><option value="Emir">Emir</option></select></div>
+          <div><label class="block font-medium mb-1">Açıklama</label><input type="text" v-model="editModal.row.title" class="w-full p-2 border rounded"></div>
+          <div><label class="block font-medium mb-1">Tür</label><select v-model="editModal.row.type" class="w-full p-2 border rounded"><option value="GELIR">GELIR</option><option value="GIDER">GIDER</option></select></div>
+          <div><label class="block font-medium mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="editModal.row.amount" class="w-full p-2 border rounded font-bold"></div>
+        </div>
+
+        <!-- 5. Çocuklar Altın Güncelleme -->
+        <div v-if="editModal.table === 'children_gold'" class="space-y-3 text-xs">
+          <div><label class="block font-medium mb-1">Tarih</label><input type="date" v-model="editModal.row.transaction_date" class="w-full p-2 border rounded"></div>
+          <div><label class="block font-medium mb-1">Kime</label><select v-model="editModal.row.child_name" class="w-full p-2 border rounded font-semibold"><option value="Damla">Damla</option><option value="Yusuf">Yusuf</option><option value="Emir">Emir</option></select></div>
+          <div><label class="block font-medium mb-1">Miktar (gr)</label><input type="number" step="0.001" v-model.number="editModal.row.amount" class="w-full p-2 border rounded font-mono font-bold"></div>
+          <div><label class="block font-medium mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="editModal.row.total_try" class="w-full p-2 border rounded font-bold"></div>
+        </div>
+
+        <!-- 6. Muhammed Gelen Para Güncelleme -->
+        <div v-if="editModal.table === 'muhammed_incomes'" class="space-y-3 text-xs">
+          <div><label class="block font-medium mb-1">Tarih</label><input type="date" v-model="editModal.row.transaction_date" class="w-full p-2 border rounded"></div>
+          <div><label class="block font-medium mb-1">Kaynak</label><select v-model="editModal.row.source" class="w-full p-2 border rounded"><option value="Mami">Mami</option><option value="Tren">Tren</option></select></div>
+          <div><label class="block font-medium mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="editModal.row.amount" class="w-full p-2 border rounded font-bold"></div>
+          <div><label class="block font-medium mb-1">Kur / Fiyat</label><input type="number" step="any" v-model.number="editModal.row.gold_rate" class="w-full p-2 border rounded font-mono"></div>
+        </div>
+
+        <!-- 7. Muhammed Yapılan Ödeme Güncelleme -->
+        <div v-if="editModal.table === 'muhammed_payments'" class="space-y-3 text-xs">
+          <div><label class="block font-medium mb-1">Tarih</label><input type="date" v-model="editModal.row.payment_date" class="w-full p-2 border rounded"></div>
+          <div><label class="block font-medium mb-1">Kime</label><input type="text" v-model="editModal.row.target_person" class="w-full p-2 border rounded font-semibold"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="block font-medium mb-1">Birim</label><select v-model="editModal.row.currency" class="w-full p-2 border rounded"><option value="TL">TL</option><option value="ALTIN_GR">Altın (gr)</option><option value="USD">USD</option></select></div>
+            <div><label class="block font-medium mb-1">Miktar</label><input type="number" step="any" v-model.number="editModal.row.amount" class="w-full p-2 border rounded font-mono font-bold"></div>
+          </div>
+          <div><label class="block font-medium mb-1">TL Karşılık</label><input type="number" step="any" v-model.number="editModal.row.amount_try" :readonly="editModal.row.currency === 'TL'" class="w-full p-2 border rounded font-mono"></div>
+          <div><label class="block font-medium mb-1">Birim Fiyat (otomatik)</label><input type="number" step="any" :value="paymentUnitPrice(editModal.row) ?? ''" readonly class="w-full p-2 border rounded font-mono bg-slate-100 text-slate-600"><p class="text-[11px] text-slate-500 mt-1">TL Karşılık / Miktar olarak otomatik hesaplanır.</p></div>
+        </div>
+
+        <!-- 8. Muhammed Borç Kalemi Güncelleme -->
+        <div v-if="editModal.table === 'muhammed_debts'" class="space-y-3 text-xs">
+          <div><label class="block font-medium mb-1">Alacaklı</label><input type="text" v-model="editModal.row.creditor" class="w-full p-2 border rounded font-semibold"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="block font-medium mb-1">Borç Miktar (Birim)</label><input type="number" step="any" v-model.number="editModal.row.debt_amount" class="w-full p-2 border rounded font-mono"></div>
+            <div><label class="block font-medium mb-1">Borç Tutar (TL)</label><input type="number" step="any" v-model.number="editModal.row.debt_try" class="w-full p-2 border rounded font-mono"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="block font-medium mb-1">Ödenen Miktar (otomatik)</label><input type="number" step="any" :value="editModal.row.paid_amount ?? 0" readonly class="w-full p-2 border rounded font-mono text-indigo-700 font-bold bg-slate-100"></div>
+            <div><label class="block font-medium mb-1">Ödenen (TL, otomatik)</label><input type="number" step="any" :value="editModal.row.paid_try ?? 0" readonly class="w-full p-2 border rounded font-mono text-emerald-600 font-bold bg-slate-100"></div>
+          </div>
+          <div><label class="block font-medium mb-1">Borç Durumu</label><select v-model="editModal.row.status" class="w-full p-2 border rounded"><option value="Ödeme Bitti">Ödeme Bitti</option><option value="Ödeme Devam Ediyor">Ödeme Devam Ediyor</option><option value="Ödeme Başlamadı">Ödeme Başlamadı</option><option value="Ödenmeyecek">Ödenmeyecek</option></select></div>
+          <div><label class="block font-medium mb-1">Not</label><textarea v-model="editModal.row.note" rows="2" class="w-full p-2 border rounded"></textarea></div>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+          <button @click="editModal.isOpen = false" class="px-3 py-1.5 rounded border border-slate-300 text-slate-600 text-xs">Vazgeç</button>
+          <button @click="saveEditRow" class="px-4 py-1.5 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs">Değişiklikleri Kaydet</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => {
+          console.log('Service Worker kaydı yapılamadı:', err);
+        });
+      });
+    }
+
+    const { createApp, ref, computed, reactive, onMounted } = Vue;
+
+    // Supabase Bağlantısı
+    const SUPABASE_URL = "https://ogioyzxqmahowxogwwbb.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_qQ17gKmqw8TEfiRSNIchSw_w7hLr5aL";
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    createApp({
+      setup() {
+        const mainModule = ref('mercan');
+        const mercanTab = ref('ozetler');
+
+        const deferredPrompt = ref(null);
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          deferredPrompt.value = e;
+        });
+
+        const installPwa = async () => {
+          if (deferredPrompt.value) {
+            deferredPrompt.value.prompt();
+            const { outcome } = await deferredPrompt.value.userChoice;
+            if (outcome === 'accepted') deferredPrompt.value = null;
+          }
+        };
+
+        // Sıralama ve Kolon Filtreleri
+        const sorts = reactive({
+          asset: { key: '', order: 'asc' },
+          cash: { key: '', order: 'asc' },
+          home: { key: '', order: 'asc' },
+          income: { key: '', order: 'asc' },
+          payment: { key: '', order: 'asc' },
+          debtAfter: { key: '', order: 'asc' },
+          debtBefore: { key: '', order: 'asc' },
+          cCash: { key: '', order: 'asc' },
+          cGold: { key: '', order: 'asc' }
+        });
+
+        const colFilters = reactive({
+          asset: { transaction_date: '', asset_type: '', trade_type: '', amount: '', total_try: '', target_person: '' },
+          cash: { transaction_date: '', type: '', title: '', amount: '', category: '' },
+          home: { owner_name: '', asset_type: '', unit: '', amount: '' },
+          income: { transaction_date: '', source: '', amount: '' },
+          payment: { payment_date: '', target_person: '', amount: '', amount_try: '' },
+          debtAfter: { creditor: '', debt_try: '', paid_amount: '', remaining_amount: '', paid_try: '', status: '' },
+          debtBefore: { creditor: '', debt_try: '', paid_try: '' },
+          cCash: { transaction_date: '', child_name: '', title: '', type: '', amount: '' },
+          cGold: { transaction_date: '', child_name: '', amount: '', total_try: '' }
+        });
+
+        const setSort = (table, key) => {
+          if (sorts[table].key === key) {
+            sorts[table].order = sorts[table].order === 'asc' ? 'desc' : 'asc';
+          } else {
+            sorts[table].key = key;
+            sorts[table].order = 'asc';
+          }
+        };
+
+        const getSortIcon = (table, key) => {
+          if (sorts[table].key !== key) return '↕';
+          return sorts[table].order === 'asc' ? '↑' : '↓';
+        };
+
+        const resetFilters = (table) => {
+          if (colFilters[table]) Object.keys(colFilters[table]).forEach(k => colFilters[table][k] = '');
+          if (sorts[table]) { sorts[table].key = ''; sorts[table].order = 'asc'; }
+        };
+
+        const editModal = ref({ isOpen: false, table: '', row: {} });
+
+        // Veri Listeleri
+        const assetList = ref([]);
+        const cashList = ref([]);
+        const homeAssets = ref([]);
+        const prices = ref({ ALTIN: 6536, USD: 49.6, KTV: 4.7868 });
+
+        const muhammedDebts = ref([]);
+        const muhammedIncomes = ref([]);
+        const muhammedPayments = ref([]);
+
+        // Çocuklar Veri Listeleri
+        const childrenCashList = ref([]);
+        const childrenGoldList = ref([]);
+
+        // Form Modelleri
+        const newAsset = ref({ transaction_date: new Date().toISOString().substring(0, 10), asset_type: 'ALTIN', trade_type: 'ALIS', amount: null, total_try: null, target_person: '' });
+        const newCash = ref({ transaction_date: new Date().toISOString().substring(0, 10), type: 'GIDER', title: '', amount: null, category: '' });
+        const newHomeAsset = ref({ owner_name: '', asset_type: '', unit: 'Adet', amount: null });
+
+        const newMIncome = ref({ transaction_date: new Date().toISOString().substring(0, 10), source: 'Mami', amount: null, gold_rate: null });
+        const newMPayment = ref({ payment_date: new Date().toISOString().substring(0, 10), target_person: '', currency: 'TL', amount: null, amount_try: null });
+        const newPaymentAmountTry = computed({
+          get: () => newMPayment.value.currency === 'TL' ? newMPayment.value.amount : newMPayment.value.amount_try,
+          set: value => { newMPayment.value.amount_try = value; }
+        });
+
+        const newChildCash = ref({ transaction_date: new Date().toISOString().substring(0, 10), child_name: 'Damla', title: 'Harçlık', type: 'GELIR', amount: null });
+        const newChildGold = ref({ transaction_date: new Date().toISOString().substring(0, 10), child_name: 'Damla', trade_type: 'ALIS', amount: null, total_try: null });
+
+        const fetchData = async () => {
+          try {
+            const { data: assets } = await db.from('asset_transactions').select('*').order('transaction_date', { ascending: false }).limit(5000);
+            if (assets) assetList.value = assets;
+
+            const { data: cash } = await db.from('cash_transactions').select('*').order('transaction_date', { ascending: false }).limit(5000);
+            if (cash) cashList.value = cash;
+
+            const { data: hAssets } = await db.from('home_assets').select('*').order('id', { ascending: true });
+            if (hAssets) homeAssets.value = hAssets;
+
+            const { data: priceData } = await db.from('market_prices').select('*');
+            if (priceData && priceData.length > 0) {
+              priceData.forEach(p => prices.value[p.asset_type] = Number(p.current_price));
+            }
+
+            const { data: debts } = await db.from('muhammed_debts').select('*');
+            if (debts) muhammedDebts.value = debts;
+
+            const { data: mIncomes } = await db.from('muhammed_incomes').select('*').order('transaction_date', { ascending: false });
+            if (mIncomes) muhammedIncomes.value = mIncomes;
+
+            const { data: mPayments } = await db.from('muhammed_payments').select('*').order('payment_date', { ascending: false });
+            if (mPayments) muhammedPayments.value = mPayments;
+
+            // Çocuklar Tabloları
+            const { data: cCash } = await db.from('children_cash').select('*').order('transaction_date', { ascending: false });
+            if (cCash) childrenCashList.value = cCash;
+
+            const { data: cGold } = await db.from('children_gold').select('*').order('transaction_date', { ascending: false });
+            if (cGold) childrenGoldList.value = cGold;
+
+          } catch (err) {
+            console.error('Veri çekme hatası:', err);
+          }
+        };
+
+        const deleteRow = async (tableName, id) => {
+          if (!confirm("Bu kaydı kalıcı olarak silmek istediğinizden emin misiniz?")) return;
+          const { error } = await db.from(tableName).delete().eq('id', id);
+          if (!error) await fetchData();
+          else alert("Silme işlemi başarısız: " + error.message);
+        };
+
+        const openEditModal = (tableName, rowData) => {
+          editModal.value.table = tableName;
+          const currentRow = tableName === 'muhammed_debts'
+            ? (debtsAfterWithPaidQty.value.find(row => row.id === rowData.id) || rowData)
+            : rowData;
+          editModal.value.row = JSON.parse(JSON.stringify(currentRow));
+          editModal.value.isOpen = true;
+        };
+
+        // Birim fiyatı veritabanındaki alandan değil, ödeme tutarı / miktar oranından türet.
+        const paymentUnitPrice = (payment) => {
+          const amount = Number(payment?.amount);
+          const amountTry = Number(payment?.amount_try);
+          if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(amountTry)) return null;
+          return amountTry / amount;
+        };
+
+        const saveEditRow = async () => {
+          const row = editModal.value.row;
+          const table = editModal.value.table;
+
+          if (table === 'muhammed_incomes' && row.source === 'Tren' && row.gold_rate > 0) {
+            row.gold_debt_to_ercan = Number((row.amount / row.gold_rate).toFixed(2));
+          } else if (table === 'muhammed_payments') {
+            row.amount_try = row.currency === 'TL' ? Number(row.amount) : Number(row.amount_try);
+            row.unit_price = paymentUnitPrice(row);
+          } else if (table === 'muhammed_debts') {
+            const paymentTotals = debtPaymentTotals(row);
+            row.paid_amount = paymentTotals.paidAmount;
+            row.paid_try = paymentTotals.paidTry;
+            row.remaining_amount = Math.max(0, (Number(row.debt_amount) || 0) - row.paid_amount);
+            if (row.status !== 'Ödenmeyecek') row.status = debtStatus(row.paid_amount, row.remaining_amount);
+          }
+
+          const updateRow = table === 'muhammed_debts'
+            ? Object.fromEntries(Object.entries(row).filter(([key]) => !['paid_amount', 'paid_try', 'remaining_amount'].includes(key)))
+            : row;
+          const { error } = await db.from(table).update(updateRow).eq('id', row.id);
+          if (!error) {
+            editModal.value.isOpen = false;
+            await fetchData();
+          } else {
+            alert("Güncelleme başarısız: " + error.message);
+          }
+        };
+
+        const filterAndSort = (list, filterObj, sortObj) => {
+          let res = list.filter(item => {
+            return Object.keys(filterObj).every(key => {
+              const filterVal = filterObj[key];
+              if (!filterVal) return true;
+              const itemVal = item[key];
+              if (itemVal === null || itemVal === undefined) return false;
+              return String(itemVal).toLowerCase().includes(filterVal.toLowerCase().trim());
+            });
+          });
+
+          if (sortObj.key) {
+            res.sort((a, b) => {
+              let valA = a[sortObj.key];
+              let valB = b[sortObj.key];
+              const numA = Number(valA);
+              const numB = Number(valB);
+              if (!isNaN(numA) && !isNaN(numB)) {
+                valA = numA; valB = numB;
+              } else {
+                valA = String(valA || '').toLowerCase(); valB = String(valB || '').toLowerCase();
+              }
+              if (valA < valB) return sortObj.order === 'asc' ? -1 : 1;
+              if (valA > valB) return sortObj.order === 'asc' ? 1 : -1;
+              return 0;
+            });
+          }
+          return res;
+        };
+
+        const filteredAssets = computed(() => filterAndSort(assetList.value, colFilters.asset, sorts.asset));
+        const filteredCash = computed(() => filterAndSort(cashList.value, colFilters.cash, sorts.cash));
+        const filteredHomeAssets = computed(() => filterAndSort(homeAssets.value, colFilters.home, sorts.home));
+        const filteredIncomes = computed(() => filterAndSort(muhammedIncomes.value, colFilters.income, sorts.income));
+        const filteredPayments = computed(() => filterAndSort(muhammedPayments.value, colFilters.payment, sorts.payment));
+
+        const debtPaymentTotals = (debt) => {
+          const creditor = String(debt?.creditor || '').toLowerCase().trim();
+          return muhammedPayments.value
+            .filter(payment => payment.currency === debt.currency
+              && String(payment.target_person || '').toLowerCase().includes(creditor))
+            .reduce((totals, payment) => ({
+              paidAmount: totals.paidAmount + (Number(payment.amount) || 0),
+              paidTry: totals.paidTry + (Number(payment.amount_try) || 0)
+            }), { paidAmount: 0, paidTry: 0 });
+        };
+
+        const debtStatus = (paidAmount, remainingAmount) => {
+          if (remainingAmount <= 0) return 'Ödeme Bitti';
+          if (paidAmount <= 0) return 'Ödeme Başlamadı';
+          return 'Ödeme Devam Ediyor';
+        };
+
+        // Kriz Sonrası Borç Tablosuna Yapılan Ödemelerden türetilen alanları ekle.
+        const debtsAfterWithPaidQty = computed(() => {
+          return muhammedDebts.value.filter(x => x.period_type === 'KRIZ_SONRASI').map(d => {
+            const paymentTotals = debtPaymentTotals(d);
+            const paidQty = paymentTotals.paidAmount;
+            const debtQty = Number(d.debt_amount || 0);
+            const remainingQty = Math.max(0, debtQty - paidQty);
+
+            return {
+              ...d,
+              paid_amount: paidQty,
+              remaining_amount: remainingQty,
+              paid_try: paymentTotals.paidTry,
+              status: d.status === 'Ödenmeyecek' ? 'Ödenmeyecek' : debtStatus(paidQty, remainingQty)
+            };
+          });
+        });
+
+        const filteredDebtsAfter = computed(() => filterAndSort(debtsAfterWithPaidQty.value, colFilters.debtAfter, sorts.debtAfter));
+        const filteredDebtsBefore = computed(() => filterAndSort(muhammedDebts.value.filter(x => x.period_type === 'KRIZ_ONCESI'), colFilters.debtBefore, sorts.debtBefore));
+
+        const filteredChildrenCash = computed(() => filterAndSort(childrenCashList.value, colFilters.cCash, sorts.cCash));
+        const filteredChildrenGold = computed(() => filterAndSort(childrenGoldList.value, colFilters.cGold, sorts.cGold));
+
+        // Çocuklar Ekleme İşlemleri
+        const addChildCash = async () => {
+          const { error } = await db.from('children_cash').insert([newChildCash.value]);
+          if (!error) {
+            await fetchData();
+            newChildCash.value.amount = null;
+          }
+        };
+
+        const addChildGold = async () => {
+          const { error } = await db.from('children_gold').insert([newChildGold.value]);
+          if (!error) {
+            await fetchData();
+            newChildGold.value.amount = null;
+            newChildGold.value.total_try = null;
+          }
+        };
+
+        // Çocuklar Bilanço ve Kart Hesaplamaları
+        const childrenTotals = computed(() => {
+          const calcChild = (name) => {
+            const income = childrenCashList.value
+              .filter(c => c.child_name === name && c.type === 'GELIR')
+              .reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+
+            const expense = childrenCashList.value
+              .filter(c => c.child_name === name && c.type === 'GIDER')
+              .reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+
+            const goldInvestment = childrenGoldList.value
+              .filter(g => g.child_name === name && g.trade_type === 'ALIS')
+              .reduce((acc, g) => acc + (Number(g.total_try) || 0), 0);
+
+            const goldAmount = childrenGoldList.value
+              .filter(g => g.child_name === name)
+              .reduce((acc, g) => acc + (g.trade_type === 'ALIS' ? Number(g.amount) : -Number(g.amount)), 0);
+
+            const net = income - (expense + goldInvestment);
+
+            const currentGoldVal = goldAmount * (prices.value.ALTIN || 0);
+            const goldPnl = currentGoldVal - goldInvestment;
+
+            return {
+              income,
+              expense,
+              investment: goldInvestment,
+              gold: goldAmount,
+              net,
+              currentGoldVal,
+              goldPnl
+            };
+          };
+
+          return {
+            emir: calcChild('Emir'),
+            damla: calcChild('Damla'),
+            yusuf: calcChild('Yusuf')
+          };
+        });
+
+        const childrenSummary = computed(() => {
+          const totalIncome = childrenCashList.value.filter(c => c.type === 'GELIR').reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+          const totalExpense = childrenCashList.value.filter(c => c.type === 'GIDER').reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+          const totalGoldInvestment = childrenGoldList.value.filter(g => g.trade_type === 'ALIS').reduce((acc, g) => acc + (Number(g.total_try) || 0), 0);
+          return {
+            totalIncome,
+            totalExpense,
+            totalGoldInvestment,
+            netCash: totalIncome - (totalExpense + totalGoldInvestment)
+          };
+        });
+
+        // Mercan Ekleme İşlemleri
+        const addAssetTransaction = async () => {
+          const { error } = await db.from('asset_transactions').insert([newAsset.value]);
+          if (!error) { await fetchData(); newAsset.value.amount = null; newAsset.value.total_try = null; }
+        };
+
+        const addCashTransaction = async () => {
+          const { error } = await db.from('cash_transactions').insert([newCash.value]);
+          if (!error) { await fetchData(); newCash.value.title = ''; newCash.value.amount = null; }
+        };
+
+        const addHomeAsset = async () => {
+          const { error } = await db.from('home_assets').insert([newHomeAsset.value]);
+          if (!error) { await fetchData(); newHomeAsset.value.owner_name = ''; newHomeAsset.value.asset_type = ''; newHomeAsset.value.amount = null; }
+        };
+
+        const savePrice = async (asset) => {
+          await db.from('market_prices').upsert({ asset_type: asset, current_price: prices.value[asset] });
+        };
+
+        const addMuhammedIncome = async () => {
+          let goldToErcan = 0;
+          if (newMIncome.value.source === 'Tren' && newMIncome.value.gold_rate > 0) {
+            goldToErcan = Number((newMIncome.value.amount / newMIncome.value.gold_rate).toFixed(2));
+          }
+          const payload = {
+            transaction_date: newMIncome.value.transaction_date,
+            source: newMIncome.value.source,
+            amount: newMIncome.value.amount,
+            gold_rate: newMIncome.value.gold_rate,
+            gold_debt_to_ercan: goldToErcan
+          };
+          const { error } = await db.from('muhammed_incomes').insert([payload]);
+          if (!error) { await fetchData(); newMIncome.value.amount = null; newMIncome.value.gold_rate = null; }
+        };
+
+        const addMuhammedPayment = async () => {
+          const totalTry = newMPayment.value.currency === 'TL'
+            ? Number(newMPayment.value.amount)
+            : Number(newMPayment.value.amount_try);
+          const payload = {
+            payment_date: newMPayment.value.payment_date,
+            target_person: newMPayment.value.target_person,
+            currency: newMPayment.value.currency,
+            amount: newMPayment.value.amount,
+            unit_price: null,
+            amount_try: totalTry
+          };
+          payload.unit_price = paymentUnitPrice(payload);
+          const { error } = await db.from('muhammed_payments').insert([payload]);
+          if (!error) { await fetchData(); newMPayment.value.target_person = ''; newMPayment.value.amount = null; newMPayment.value.amount_try = null; }
+        };
+
+        const muhammedTotalIncome = computed(() => muhammedIncomes.value.reduce((acc, item) => acc + (Number(item.amount) || 0), 0));
+        const muhammedTotalPayment = computed(() => muhammedPayments.value.reduce((acc, item) => acc + (Number(item.amount_try) || 0), 0));
+        const krizOncesiTotal = computed(() => muhammedDebts.value.filter(x => x.period_type === 'KRIZ_ONCESI').reduce((acc, item) => acc + (Number(item.debt_try) || 0), 0));
+
+        const muhammedAccountSummary = computed(() => {
+          const krizSonrasiBorcTL = debtsAfterWithPaidQty.value
+            .reduce((acc, item) => acc + (Number(item.debt_try) || 0), 0);
+          const krizSonrasindanKalanTL = krizSonrasiBorcTL - krizOncesiTotal.value;
+          const krizSonrasiOdemelerdenKalanTL = muhammedTotalIncome.value - muhammedTotalPayment.value;
+
+          return {
+            odenenTL: muhammedTotalIncome.value,
+            krizSonrasindanKalanTL,
+            krizSonrasiOdemelerdenKalanTL,
+            hesaptaKalanTL: krizSonrasindanKalanTL + krizSonrasiOdemelerdenKalanTL
+          };
+        });
+
+        // Muhammed Dinamik Özet Kartları
+        const muhammedSummary = computed(() => {
+          const krizOncesiBorc = muhammedDebts.value
+            .filter(x => x.period_type === 'KRIZ_ONCESI')
+            .reduce((acc, item) => acc + (Number(item.debt_try) || 0), 0);
+
+          const getCategorySummary = (currency) => {
+            const debts = debtsAfterWithPaidQty.value.filter(x => x.currency === currency && x.status !== 'Ödenmeyecek');
+            const toplam = debts.reduce((acc, item) => acc + (Number(item.debt_amount) || 0), 0);
+            const odenen = debts.reduce((acc, item) => acc + (Number(item.paid_amount) || 0), 0);
+
+            return {
+              toplam,
+              odenen,
+              kalan: Math.max(0, toplam - odenen)
+            };
+          };
+
+          return {
+            krizOncesiBorc,
+            krizSonrasiTL: getCategorySummary('TL'),
+            altinBorcu: getCategorySummary('ALTIN_GR'),
+            dolarBorcu: getCategorySummary('USD')
+          };
+        });
+
+        // Mercan 6 Kişi Bilanço Hesaplamaları (DİNAMİK MANTIK)
+        const personTotals = computed(() => {
+          const sumCash = (type, catFilter) => {
+            return cashList.value
+              .filter(c => c.type === type && c.category && c.category.toLowerCase().trim() === catFilter.toLowerCase().trim())
+              .reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+          };
+
+          const sumAsset = (assetType, personFilter) => {
+            return assetList.value
+              .filter(a => a.asset_type === assetType && a.target_person && a.target_person.toLowerCase().trim() === personFilter.toLowerCase().trim())
+              .reduce((acc, a) => acc + (a.trade_type === 'ALIS' ? Number(a.amount) : -Number(a.amount)), 0);
+          };
+
+          const sumAssetTry = (personFilter, tradeType) => {
+            return assetList.value
+              .filter(a => a.target_person && a.target_person.toLowerCase().trim() === personFilter.toLowerCase().trim() && a.trade_type === tradeType)
+              .reduce((acc, a) => acc + (Number(a.total_try) || 0), 0);
+          };
+
+          const getRemainingDebt = (personName, currencyType) => {
+            const debtObj = muhammedDebts.value.find(d =>
+              d.period_type === 'KRIZ_SONRASI' &&
+              d.currency === currencyType &&
+              d.creditor.toLowerCase().includes(personName.toLowerCase())
+            );
+            const initialDebt = debtObj ? Number(debtObj.debt_amount) : 0;
+            const totalPaid = muhammedPayments.value
+              .filter(p => p.currency === currencyType && p.target_person.toLowerCase().includes(personName.toLowerCase()))
+              .reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+            return Math.max(0, initialDebt - totalPaid);
+          };
+
+          // 1. KÖY HESAPLAMASI (Eski Gelir - Eski Gider)
+          const isEski = (c) => {
+            const text = `${c.category || ''} ${c.title || ''}`.toLowerCase();
+            return text.includes('eski');
+          };
+          const eskiGelir = cashList.value.filter(c => c.type === 'GELIR' && isEski(c)).reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+          const eskiGider = cashList.value.filter(c => c.type === 'GIDER' && isEski(c)).reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+          const koyDugunOncesiKalan = eskiGelir - eskiGider;
+
+          const koyEmekli = sumCash('GELIR', 'emekli');
+          const koyDiger = sumCash('GELIR', 'diger');
+          const koyGider = sumCash('GIDER', 'köy gider');
+          const koyYatirimGider = sumAssetTry('ortak', 'ALIS');
+          const koyYatirimGelir = sumAssetTry('ortak', 'SATIS');
+          const koyNet = (koyDugunOncesiKalan + koyEmekli + koyDiger + koyYatirimGelir) - (koyGider + koyYatirimGider);
+          const koyAltinBirikim = sumAsset('ALTIN', 'ortak');
+          const koyMamiyeVerilen = getRemainingDebt('Köy', 'ALTIN_GR');
+
+          // 2. HİLAL HESAPLAMASI
+          const hilalGelir = sumCash('GELIR', 'hilal');
+          const hilalHarcanan = sumCash('GIDER', 'hilal giden');
+          const hilalYatirimGider = sumAssetTry('hilal', 'ALIS');
+          const hilalYatirimGelir = sumAssetTry('hilal', 'SATIS');
+          const hilalNet = (hilalGelir + hilalYatirimGelir) - (hilalYatirimGider + hilalHarcanan);
+          const hilalAltinBirikim = sumAsset('ALTIN', 'hilal');
+          const hilalMamiyeVerilenAltin = getRemainingDebt('Hilal', 'ALTIN_GR');
+          const hilalDolarBirikim = sumAsset('USD', 'hilal');
+          const hilalMamiyeVerilenDolar = getRemainingDebt('Hilal', 'USD');
+
+          // 3. AZAD HESAPLAMASI
+          const azadGelir = sumCash('GELIR', 'azad');
+          const azadHarcanan = sumCash('GIDER', 'azad giden');
+          const azadYatirimGider = sumAssetTry('azad', 'ALIS');
+          const azadYatirimGelir = sumAssetTry('azad', 'SATIS');
+          const azadNet = (azadGelir + azadYatirimGelir) - (azadYatirimGider + azadHarcanan);
+          const azadAltinBirikim = sumAsset('ALTIN', 'azad');
+          const azadMamiyeVerilenAltin = getRemainingDebt('Azad', 'ALTIN_GR');
+          const azadDolarBirikim = sumAsset('USD', 'azad');
+          const azadMamiyeVerilenDolar = getRemainingDebt('Azad', 'USD');
+
+          // 4. ERHAN HESAPLAMASI
+          const erhanGelir = sumCash('GELIR', 'erhan');
+          const erhanHarcanan = sumCash('GIDER', 'erhan giden');
+          const erhanYatirimGider = sumAssetTry('erhan', 'ALIS');
+          const erhanYatirimGelir = sumAssetTry('erhan', 'SATIS');
+          const erhanNet = (erhanGelir + erhanYatirimGelir) - (erhanYatirimGider + erhanHarcanan);
+
+          // 5. HÜLYA HESAPLAMASI
+          const hulyaGelir = sumCash('GELIR', 'hülya');
+          const hulyaHarcanan = sumCash('GIDER', 'hülya giden');
+          const hulyaYatirimGider = sumAssetTry('hülya', 'ALIS');
+          const hulyaYatirimGelir = sumAssetTry('hülya', 'SATIS');
+          const hulyaNet = (hulyaGelir + hulyaYatirimGelir) - (hulyaYatirimGider + hulyaHarcanan);
+
+          // 6. MAMİ HESAPLAMASI
+          const mamiGelir = sumCash('GELIR', 'mami');
+          const mamiHarcanan = sumCash('GIDER', 'mami giden');
+          const mamiYatirimGider = sumAssetTry('mami', 'ALIS');
+          const mamiYatirimGelir = sumAssetTry('mami', 'SATIS');
+          const mamiNet = (mamiGelir + mamiYatirimGelir) - (mamiYatirimGider + mamiHarcanan);
+
+          return {
+            koy: {
+              dugunOncesiKalan: koyDugunOncesiKalan,
+              emekliGelir: koyEmekli,
+              digerGelir: koyDiger,
+              gider: koyGider,
+              yatirimGider: koyYatirimGider,
+              yatirimGelir: koyYatirimGelir,
+              netKalan: koyNet,
+              altinBirikim: koyAltinBirikim,
+              mamiyeVerilen: koyMamiyeVerilen,
+              hesaptaKalan: koyAltinBirikim - koyMamiyeVerilen
+            },
+            hilal: {
+              gelir: hilalGelir,
+              harcanan: hilalHarcanan,
+              yatirimGider: hilalYatirimGider,
+              yatirimGelir: hilalYatirimGelir,
+              netKalan: hilalNet,
+              altinBirikim: hilalAltinBirikim,
+              mamiyeVerilenAltin: hilalMamiyeVerilenAltin,
+              hesaptaKalanAltin: hilalAltinBirikim - hilalMamiyeVerilenAltin,
+              dolarBirikim: hilalDolarBirikim,
+              mamiyeVerilenDolar: hilalMamiyeVerilenDolar,
+              hesaptaKalanDolar: hilalDolarBirikim - hilalMamiyeVerilenDolar
+            },
+            azad: {
+              gelir: azadGelir,
+              harcanan: azadHarcanan,
+              yatirimGider: azadYatirimGider,
+              yatirimGelir: azadYatirimGelir,
+              netKalan: azadNet,
+              altinBirikim: azadAltinBirikim,
+              mamiyeVerilenAltin: azadMamiyeVerilenAltin,
+              hesaptaKalanAltin: azadAltinBirikim - azadMamiyeVerilenAltin,
+              dolarBirikim: azadDolarBirikim,
+              mamiyeVerilenDolar: azadMamiyeVerilenDolar,
+              hesaptaKalanDolar: azadDolarBirikim - azadMamiyeVerilenDolar
+            },
+            erhan: {
+              gelir: erhanGelir,
+              harcanan: erhanHarcanan,
+              yatirimGider: erhanYatirimGider,
+              yatirimGelir: erhanYatirimGelir,
+              netKalan: erhanNet,
+              altinBirikim: sumAsset('ALTIN', 'erhan')
+            },
+            hulya: {
+              gelir: hulyaGelir,
+              harcanan: hulyaHarcanan,
+              yatirimGider: hulyaYatirimGider,
+              yatirimGelir: hulyaYatirimGelir,
+              netKalan: hulyaNet,
+              altinBirikim: sumAsset('ALTIN', 'hülya')
+            },
+            mami: {
+              gelir: mamiGelir,
+              harcanan: mamiHarcanan,
+              yatirimGider: mamiYatirimGider,
+              yatirimGelir: mamiYatirimGelir,
+              netKalan: mamiNet,
+              altinBirikim: sumAsset('ALTIN', 'mami')
+            }
+          };
+        });
+
+        // Mercan Portföy ve Nakit Hesaplamaları
+        const summary = computed(() => {
+          let totalIncome = 0;
+          let totalExpense = 0;
+
+          cashList.value.forEach(c => {
+            const amt = Number(c.amount) || 0;
+            if (c.type === 'GELIR') totalIncome += amt;
+            else totalExpense += amt;
+          });
+
+          let totalAssetBuyTry = 0;
+          let totalAssetSellTry = 0;
+
+          assetList.value.forEach(a => {
+            const tryVal = Number(a.total_try) || 0;
+            if (a.trade_type === 'ALIS') totalAssetBuyTry += tryVal;
+            else if (a.trade_type === 'SATIS') totalAssetSellTry += tryVal;
+          });
+
+          const netAssetInvested = totalAssetBuyTry - totalAssetSellTry;
+          const netCash = totalIncome - totalExpense - netAssetInvested;
+
+          const getRemainingDebt = (personName, currencyType) => {
+            const debtObj = muhammedDebts.value.find(d =>
+              d.period_type === 'KRIZ_SONRASI' &&
+              d.currency === currencyType &&
+              d.creditor.toLowerCase().includes(personName.toLowerCase())
+            );
+            const initialDebt = debtObj ? Number(debtObj.debt_amount) : 0;
+            const totalPaid = muhammedPayments.value
+              .filter(p => p.currency === currencyType && p.target_person.toLowerCase().includes(personName.toLowerCase()))
+              .reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+            return Math.max(0, initialDebt - totalPaid);
+          };
+
+          const mamiGoldDebt = getRemainingDebt('Köy', 'ALTIN_GR') + getRemainingDebt('Hilal', 'ALTIN_GR') + getRemainingDebt('Azad', 'ALTIN_GR');
+          const mamiUsdDebt = getRemainingDebt('Hilal', 'USD') + getRemainingDebt('Azad', 'USD');
+
+          const calcAsset = (type, mamiDebtAmount = 0) => {
+            let buyQty = 0, buyTotal = 0, sellQty = 0, sellTotal = 0;
+            assetList.value.filter(a => a.asset_type === type).forEach(a => {
+              const qty = Number(a.amount) || 0;
+              const tot = Number(a.total_try) || 0;
+              if (a.trade_type === 'ALIS') { buyQty += qty; buyTotal += tot; }
+              else { sellQty += qty; sellTotal += tot; }
+            });
+
+            const shouldBe = buyQty - sellQty;
+            const inAccount = Math.max(0, shouldBe - mamiDebtAmount);
+            const avgCost = buyQty > 0 ? (buyTotal / buyQty) : 0;
+            const currentVal = shouldBe * (prices.value[type] || 0);
+            const inAccountVal = inAccount * (prices.value[type] || 0);
+            const pnl = currentVal + sellTotal - buyTotal;
+
+            return { buyQty, sellQty, shouldBe, mamiDebt: mamiDebtAmount, inAccount, avgCost, currentVal, inAccountVal, pnl };
+          };
+
+          return {
+            totalIncome,
+            totalExpense,
+            totalAssetInvested: netAssetInvested,
+            netCash,
+            gold: calcAsset('ALTIN', mamiGoldDebt),
+            usd: calcAsset('USD', mamiUsdDebt),
+            ktv: calcAsset('KTV', 0)
+          };
+        });
+
+        const formatMoney = (val) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(val || 0);
+        const formatPlain = (val) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(val || 0);
+
+        onMounted(fetchData);
+
+        return {
+          mainModule,
+          mercanTab,
+          deferredPrompt,
+          installPwa,
+          sorts,
+          colFilters,
+          setSort,
+          getSortIcon,
+          resetFilters,
+          filteredAssets,
+          filteredCash,
+          filteredHomeAssets,
+          filteredIncomes,
+          filteredPayments,
+          debtsAfterWithPaidQty,
+          filteredDebtsAfter,
+          filteredDebtsBefore,
+          filteredChildrenCash,
+          filteredChildrenGold,
+          editModal,
+          openEditModal,
+          saveEditRow,
+          deleteRow,
+          assetList,
+          cashList,
+          homeAssets,
+          prices,
+          muhammedDebts,
+          muhammedIncomes,
+          muhammedPayments,
+          childrenCashList,
+          childrenGoldList,
+          newAsset,
+          newCash,
+          newHomeAsset,
+          newMIncome,
+          newMPayment,
+          newPaymentAmountTry,
+          newChildCash,
+          newChildGold,
+          addChildCash,
+          addChildGold,
+          summary,
+          personTotals,
+          childrenTotals,
+          childrenSummary,
+          muhammedTotalIncome,
+          muhammedTotalPayment,
+          muhammedAccountSummary,
+          muhammedSummary,
+          krizOncesiTotal,
+          addAssetTransaction,
+          addCashTransaction,
+          addHomeAsset,
+          addMuhammedIncome,
+          addMuhammedPayment,
+          savePrice,
+          paymentUnitPrice,
+          formatMoney,
+          formatPlain
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
