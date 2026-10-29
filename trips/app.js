@@ -1,4 +1,4 @@
-const { createApp, ref, computed } = Vue;
+const { createApp, ref, computed, watch } = Vue;
 const db = window.supabase.createClient(window.SUPABASE_PUBLIC_CONFIG.url, window.SUPABASE_PUBLIC_CONFIG.key);
 const currencies = ['USD', 'EUR', 'OMR', 'CAD'];
 
@@ -12,6 +12,10 @@ createApp({
     const emptyExpense = () => ({ trip_id: '', name: '', amount_try: null, amount_currency: null, currency: 'USD' });
     const tripForm = ref(emptyTrip()), expenseForm = ref(emptyExpense());
     const activeTrips = computed(() => trips.value.filter(t => t.status === 'AKTIF'));
+    watch(() => expenseForm.value.trip_id, (tripId) => {
+      const selectedTrip = trips.value.find(trip => String(trip.id) === String(tripId));
+      if (selectedTrip?.currency) expenseForm.value.currency = selectedTrip.currency;
+    });
     const selectedExpenses = computed(() => selectedTrip.value ? expenses.value.filter(e => e.trip_id === selectedTrip.value.id) : []);
     const detailTotals = computed(() => selectedExpenses.value.reduce((sum, e) => ({ try: sum.try + Number(e.amount_try || 0), currency: sum.currency + (e.currency === selectedTrip.value.currency ? Number(e.amount_currency || 0) : 0) }), { try: 0, currency: 0 }));
     const money = (value, currency) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(value || 0));
