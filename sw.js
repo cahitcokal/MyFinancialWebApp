@@ -1,9 +1,10 @@
-const CACHE_NAME = 'hesapkitap-v3';
+const CACHE_NAME = 'hesapkitap-v4';
 const APP_SHELL = [
   './',
   './index.html',
   './css/app.css',
   './js/database-dump.js',
+  './js/supabase-public-config.js',
   './js/config.js',
   './js/app.js',
   './site.webmanifest',

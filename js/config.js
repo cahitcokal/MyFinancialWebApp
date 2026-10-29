@@ -1,6 +1,6 @@
 (function configureApplication() {
-  const SUPABASE_URL = 'https://ogioyzxqmahowxogwwbb.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_qQ17gKmqw8TEfiRSNIchSw_w7hLr5aL';
+  const SUPABASE_URL = window.SUPABASE_PUBLIC_CONFIG.url;
+  const SUPABASE_ANON_KEY = window.SUPABASE_PUBLIC_CONFIG.key;
   const PASSWORD_RESET_REDIRECT_URL = 'https://cahitcokal.github.io/MyFinancialWebApp/';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const authScreen = document.getElementById('auth-screen');

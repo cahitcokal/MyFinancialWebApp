@@ -1,5 +1,5 @@
 const { createApp, ref, computed } = Vue;
-const db = window.supabase.createClient('https://ogioyzxqmahowxogwwbb.supabase.co', 'sb_publishable_qQ17GqKmqw8TEfiRSNIchSw_w7hLr5aL');
+const db = window.supabase.createClient(window.SUPABASE_PUBLIC_CONFIG.url, window.SUPABASE_PUBLIC_CONFIG.key);
 const currencies = ['USD', 'EUR', 'OMR', 'CAD'];
 
 createApp({
@@ -36,7 +36,7 @@ createApp({
     };
     const logout = async () => { await db.auth.signOut({ scope: 'local' }); session.value = null; isAdmin.value = false; };
     const optionalValues = (form, keys) => Object.fromEntries(keys.filter(key => form[key] !== null && form[key] !== undefined && form[key] !== '').map(key => [key, form[key]]));
-    const addTrip = async () => { const payload = { name: tripForm.value.name, country: tripForm.value.country, status: 'AKTIF', ...optionalValues(tripForm.value, ['allowance_amount', 'currency', 'allowance_try']) }; const { error } = await db.from('trips').insert([payload]); if (error) return alert(error.message); tripForm.value = emptyTrip(); await load(); };
+    const addTrip = async () => { if (!tripForm.value.name || !tripForm.value.country) return alert('Seyahat Adı ve Ülke zorunludur.'); const payload = { name: tripForm.value.name, country: tripForm.value.country, status: 'AKTIF', ...optionalValues(tripForm.value, ['allowance_amount', 'currency', 'allowance_try']) }; const { error } = await db.from('trips').insert([payload]); if (error) return alert(error.message); tripForm.value = emptyTrip(); await load(); };
     const addExpense = async () => { const payload = { trip_id: expenseForm.value.trip_id, name: expenseForm.value.name, amount_try: expenseForm.value.amount_try, ...optionalValues(expenseForm.value, ['amount_currency', 'currency']) }; const { error } = await db.from('trip_expenses').insert([payload]); if (error) return alert(error.message); expenseForm.value = emptyExpense(); await load(); if (selectedTrip.value) selectedTrip.value = trips.value.find(t => t.id === selectedTrip.value.id); };
     const openDetails = (trip) => { selectedTrip.value = trip; };
     const refreshSelectedTrip = () => { if (selectedTrip.value) selectedTrip.value = trips.value.find(t => t.id === selectedTrip.value.id) || null; };
