@@ -16,8 +16,24 @@ createApp({
     const detailTotals = computed(() => selectedExpenses.value.reduce((sum, e) => ({ try: sum.try + Number(e.amount_try || 0), currency: sum.currency + (e.currency === selectedTrip.value.currency ? Number(e.amount_currency || 0) : 0) }), { try: 0, currency: 0 }));
     const money = (value, currency) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(value || 0));
     const load = async () => { const [{ data: t }, { data: e }] = await Promise.all([db.from('trips').select('*').order('created_at', { ascending: false }), db.from('trip_expenses').select('*').order('created_at', { ascending: false })]); trips.value = t || []; expenses.value = e || []; };
-    const authenticate = async (currentSession) => { session.value = currentSession; if (currentSession) { const { data: role } = await db.rpc('get_my_role'); isAdmin.value = role === 'admin'; if (isAdmin.value) await load(); } ready.value = true; };
-    const login = async () => { errorMessage.value = ''; const { data, error } = await db.auth.signInWithPassword(loginForm.value); if (error) errorMessage.value = 'E-posta veya şifre hatalı.'; else await authenticate(data.session); };
+    const authenticate = async (currentSession) => {
+      session.value = currentSession;
+      if (currentSession) {
+        const { data: role, error: roleError } = await db.rpc('get_my_role');
+        const normalizedRole = Array.isArray(role) ? role[0]?.role : role;
+        isAdmin.value = String(normalizedRole || '').trim().toLowerCase() === 'admin';
+        if (roleError) errorMessage.value = `Rol kontrolü başarısız: ${roleError.message}`;
+        else if (!isAdmin.value) errorMessage.value = 'Bu hesap admin değil. Supabase allowed_users tablosunda bu e-posta için role = admin olmalı.';
+        if (isAdmin.value) await load();
+      }
+      ready.value = true;
+    };
+    const login = async () => {
+      errorMessage.value = '';
+      const { data, error } = await db.auth.signInWithPassword({ email: loginForm.value.email.trim().toLowerCase(), password: loginForm.value.password });
+      if (error) errorMessage.value = 'E-posta veya şifre hatalı.';
+      else { const { data: sessionData } = await db.auth.getSession(); await authenticate(sessionData.session || data.session); }
+    };
     const logout = async () => { await db.auth.signOut({ scope: 'local' }); session.value = null; isAdmin.value = false; };
     const optionalValues = (form, keys) => Object.fromEntries(keys.filter(key => form[key] !== null && form[key] !== undefined && form[key] !== '').map(key => [key, form[key]]));
     const addTrip = async () => { const payload = { name: tripForm.value.name, country: tripForm.value.country, status: 'AKTIF', ...optionalValues(tripForm.value, ['allowance_amount', 'currency', 'allowance_try']) }; const { error } = await db.from('trips').insert([payload]); if (error) return alert(error.message); tripForm.value = emptyTrip(); await load(); };

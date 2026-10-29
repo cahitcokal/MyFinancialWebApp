@@ -22,7 +22,7 @@
           <button class="w-full rounded-lg bg-indigo-600 p-3 font-semibold text-white hover:bg-indigo-700">Giriş Yap</button>
           <p v-if="errorMessage" class="text-sm text-rose-600">{{ errorMessage }}</p>
         </form>
-        <p v-else class="mt-6 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">Bu kullanıcı admin yetkisine sahip değil.</p>
+        <p v-else class="mt-6 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{{ errorMessage || 'Bu kullanıcı admin yetkisine sahip değil.' }}</p>
         <a href="../" class="mt-6 inline-block text-sm font-medium text-indigo-600 hover:underline">Ana uygulamaya dön</a>
       </div>
     </section>
