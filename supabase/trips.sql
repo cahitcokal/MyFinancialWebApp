@@ -26,3 +26,21 @@ drop policy if exists "admins can manage trips" on public.trips;
 drop policy if exists "admins can manage trip expenses" on public.trip_expenses;
 create policy "admins can manage trips" on public.trips for all to authenticated using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');
 create policy "admins can manage trip expenses" on public.trip_expenses for all to authenticated using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');
+
+-- Masrafı bulunan seyahatlerin yanlışlıkla silinmesini veritabanında da engelle.
+create or replace function public.prevent_trip_delete_with_expenses()
+returns trigger
+language plpgsql
+as $$
+begin
+  if exists (select 1 from public.trip_expenses where trip_id = old.id) then
+    raise exception 'Masraf kaydı bulunan seyahat silinemez';
+  end if;
+  return old;
+end;
+$$;
+
+drop trigger if exists prevent_trip_delete_with_expenses on public.trips;
+create trigger prevent_trip_delete_with_expenses
+before delete on public.trips
+for each row execute function public.prevent_trip_delete_with_expenses();
