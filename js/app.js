@@ -155,6 +155,33 @@
           editModal.value.isOpen = true;
         };
 
+        // Düzenlenen kaydı değiştirmeden, ilgili yeni kayıt formuna kopyala.
+        const copyToNewForm = (tableName, rowData) => {
+          if (!isAdmin.value) return;
+          const row = JSON.parse(JSON.stringify(rowData));
+          const fields = (keys) => Object.fromEntries(keys.map(key => [key, row[key] ?? null]));
+          const forms = {
+            asset_transactions: ['transaction_date', 'asset_type', 'trade_type', 'amount', 'total_try', 'target_person'],
+            cash_transactions: ['transaction_date', 'type', 'title', 'amount', 'category'],
+            home_assets: ['owner_name', 'asset_type', 'unit', 'amount'],
+            muhammed_incomes: ['transaction_date', 'source', 'amount', 'gold_rate'],
+            muhammed_payments: ['payment_date', 'target_person', 'currency', 'amount', 'amount_try'],
+            children_cash: ['transaction_date', 'child_name', 'title', 'type', 'amount'],
+            children_gold: ['transaction_date', 'child_name', 'trade_type', 'amount', 'total_try']
+          };
+          if (!forms[tableName]) return;
+          const value = fields(forms[tableName]);
+          if (tableName === 'asset_transactions') newAsset.value = value;
+          if (tableName === 'cash_transactions') newCash.value = value;
+          if (tableName === 'home_assets') newHomeAsset.value = value;
+          if (tableName === 'muhammed_incomes') newMIncome.value = value;
+          if (tableName === 'muhammed_payments') newMPayment.value = value;
+          if (tableName === 'children_cash') newChildCash.value = value;
+          if (tableName === 'children_gold') newChildGold.value = value;
+          editModal.value.isOpen = false;
+          alert('Kayıt ekleme formuna kopyalandı. Kaydet ile yeni kayıt oluşturabilirsiniz.');
+        };
+
         // Birim fiyatı veritabanındaki alandan değil, ödeme tutarı / miktar oranından türet.
         const paymentUnitPrice = (payment) => {
           const amount = Number(payment?.amount);
@@ -741,6 +768,7 @@
           filteredChildrenGold,
           editModal,
           openEditModal,
+          copyToNewForm,
           saveEditRow,
           deleteRow,
           assetList,

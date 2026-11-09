@@ -592,6 +592,8 @@
                   <td class="p-2.5 text-center space-x-1.5 whitespace-nowrap">
                     <button v-if="isAdmin" @click="openEditModal('asset_transactions', item)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                     <span class="text-slate-300">|</span>
+                    <button v-if="isAdmin" @click="copyToNewForm('asset_transactions', item)" class="text-indigo-600 hover:text-indigo-800 font-semibold">Kopyala</button>
+                    <span class="text-slate-300">|</span>
                     <button v-if="isAdmin" @click="deleteRow('asset_transactions', item.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
                 </tr>
@@ -646,6 +648,8 @@
                   <td class="p-2.5 text-center space-x-1.5 whitespace-nowrap">
                     <button v-if="isAdmin" @click="openEditModal('cash_transactions', item)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                     <span class="text-slate-300">|</span>
+                    <button v-if="isAdmin" @click="copyToNewForm('cash_transactions', item)" class="text-indigo-600 hover:text-indigo-800 font-semibold">Kopyala</button>
+                    <span class="text-slate-300">|</span>
                     <button v-if="isAdmin" @click="deleteRow('cash_transactions', item.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
                 </tr>
@@ -695,6 +699,8 @@
                   <td class="p-3 text-right font-mono font-bold text-sm text-slate-900">{{ Number(item.amount).toLocaleString('tr-TR') }}</td>
                   <td class="p-3 text-center space-x-2 whitespace-nowrap">
                     <button v-if="isAdmin" @click="openEditModal('home_assets', item)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <span class="text-slate-300">|</span>
+                    <button v-if="isAdmin" @click="copyToNewForm('home_assets', item)" class="text-indigo-600 hover:text-indigo-800 font-semibold">Kopyala</button>
                     <span class="text-slate-300">|</span>
                     <button v-if="isAdmin" @click="deleteRow('home_assets', item.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
@@ -831,6 +837,8 @@
                   <td class="p-2 text-center space-x-1">
                     <button v-if="isAdmin" @click="openEditModal('muhammed_incomes', inc)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                     <span class="text-slate-300">|</span>
+                    <button v-if="isAdmin" @click="copyToNewForm('muhammed_incomes', inc)" class="text-indigo-600 hover:text-indigo-800 font-semibold">Kopyala</button>
+                    <span class="text-slate-300">|</span>
                     <button v-if="isAdmin" @click="deleteRow('muhammed_incomes', inc.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
                 </tr>
@@ -887,6 +895,8 @@
                   <td class="p-2 text-right font-mono text-slate-400">{{ paymentUnitPrice(pay) === null ? '-' : formatMoney(paymentUnitPrice(pay)) }}</td>
                   <td class="p-2 text-center space-x-1">
                     <button v-if="isAdmin" @click="openEditModal('muhammed_payments', pay)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <span class="text-slate-300">|</span>
+                    <button v-if="isAdmin" @click="copyToNewForm('muhammed_payments', pay)" class="text-indigo-600 hover:text-indigo-800 font-semibold">Kopyala</button>
                     <span class="text-slate-300">|</span>
                     <button v-if="isAdmin" @click="deleteRow('muhammed_payments', pay.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
@@ -1205,6 +1215,8 @@
                   <td class="p-2 text-center space-x-1 whitespace-nowrap">
                     <button v-if="isAdmin" @click="openEditModal('children_cash', c)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
                     <span class="text-slate-300">|</span>
+                    <button v-if="isAdmin" @click="copyToNewForm('children_cash', c)" class="text-indigo-600 hover:text-indigo-800 font-semibold">Kopyala</button>
+                    <span class="text-slate-300">|</span>
                     <button v-if="isAdmin" @click="deleteRow('children_cash', c.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
                 </tr>
@@ -1262,6 +1274,8 @@
                   <td class="p-2 text-right font-mono text-slate-400">{{ (Number(g.total_try) / (Number(g.amount) || 1)).toFixed(0) }} ₺</td>
                   <td class="p-2 text-center space-x-1 whitespace-nowrap">
                     <button v-if="isAdmin" @click="openEditModal('children_gold', g)" class="text-blue-600 hover:text-blue-800 font-semibold">Düzenle</button>
+                    <span class="text-slate-300">|</span>
+                    <button v-if="isAdmin" @click="copyToNewForm('children_gold', g)" class="text-indigo-600 hover:text-indigo-800 font-semibold">Kopyala</button>
                     <span class="text-slate-300">|</span>
                     <button v-if="isAdmin" @click="deleteRow('children_gold', g.id)" class="text-rose-600 hover:text-rose-800 font-semibold">Sil</button>
                   </td>
