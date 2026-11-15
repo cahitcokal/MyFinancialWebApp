@@ -501,21 +501,45 @@
 
         // Mercan 6 Kişi Bilanço Hesaplamaları (DİNAMİK MANTIK)
         const personTotals = computed(() => {
+          const normalizeText = (value) => String(value || '')
+            .toLocaleLowerCase('tr-TR')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          const personMatches = (value, personFilter) => normalizeText(value) === normalizeText(personFilter);
+
+          const cashCategoryMatches = (category, categoryFilter, type) => {
+            const actual = normalizeText(category);
+            const expected = normalizeText(categoryFilter);
+            if (actual === expected) return true;
+
+            // Gider kategorileri geçmişte "giden", "gider" veya sadece kişi adı olarak girilmiş olabilir.
+            if (type === 'GIDER') {
+              const person = expected.replace(/\s+(giden|gider)$/, '').trim();
+              if (person !== expected) {
+                return actual === person || new RegExp(`^${person}\\s+(giden|gider|gideri|harcama|harcanan|masraf)$`).test(actual);
+              }
+            }
+            return false;
+          };
+
           const sumCash = (type, catFilter) => {
             return cashList.value
-              .filter(c => c.type === type && c.category && c.category.toLowerCase().trim() === catFilter.toLowerCase().trim())
+              .filter(c => c.type === type && cashCategoryMatches(c.category, catFilter, type))
               .reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
           };
 
           const sumAsset = (assetType, personFilter) => {
             return assetList.value
-              .filter(a => a.asset_type === assetType && a.target_person && a.target_person.toLowerCase().trim() === personFilter.toLowerCase().trim())
+              .filter(a => a.asset_type === assetType && personMatches(a.target_person, personFilter))
               .reduce((acc, a) => acc + (a.trade_type === 'ALIS' ? Number(a.amount) : -Number(a.amount)), 0);
           };
 
           const sumAssetTry = (personFilter, tradeType) => {
             return assetList.value
-              .filter(a => a.target_person && a.target_person.toLowerCase().trim() === personFilter.toLowerCase().trim() && a.trade_type === tradeType)
+              .filter(a => personMatches(a.target_person, personFilter) && a.trade_type === tradeType)
               .reduce((acc, a) => acc + (Number(a.total_try) || 0), 0);
           };
 
@@ -523,11 +547,11 @@
             const debtObj = muhammedDebts.value.find(d =>
               d.period_type === 'KRIZ_SONRASI' &&
               d.currency === currencyType &&
-              d.creditor.toLowerCase().includes(personName.toLowerCase())
+              normalizeText(d.creditor).includes(normalizeText(personName))
             );
             const initialDebt = debtObj ? Number(debtObj.debt_amount) : 0;
             const totalPaid = muhammedPayments.value
-              .filter(p => p.currency === currencyType && p.target_person.toLowerCase().includes(personName.toLowerCase()))
+              .filter(p => p.currency === currencyType && normalizeText(p.target_person).includes(normalizeText(personName)))
               .reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
             return Math.max(0, initialDebt - totalPaid);
           };
