@@ -280,10 +280,11 @@
 
         <!-- TAB 1: KİŞİ & KATEGORİ ÖZETLERİ (6 KİŞİ) -->
         <div v-show="mercanTab === 'ozetler'" class="p-4 sm:p-6 space-y-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div class="person-summary-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
             <!-- 1. KÖY TABLOSU -->
-            <div class="bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+            <div class="person-summary-card bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+              <div class="person-summary-header"><span class="person-summary-avatar">K</span><div><p class="person-summary-name">Köy</p><p class="person-summary-caption">Gelir ve hesap özeti</p></div></div>
               <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
                 <span>Onur Düğün Öncesi Kalan</span>
                 <span class="font-bold">{{ formatPlain(personTotals.koy.dugunOncesiKalan) }}</span>
@@ -329,7 +330,8 @@
             </div>
 
             <!-- 2. HİLAL TABLOSU -->
-            <div class="bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+            <div class="person-summary-card bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+              <div class="person-summary-header"><span class="person-summary-avatar">H</span><div><p class="person-summary-name">Hilal</p><p class="person-summary-caption">Gelir, yatırım ve birikim</p></div></div>
               <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
                 <span>Hilal Toplam Gelir</span>
                 <span class="font-bold">{{ formatPlain(personTotals.hilal.gelir) }}</span>
@@ -381,7 +383,8 @@
             </div>
 
             <!-- 3. AZAD TABLOSU -->
-            <div class="bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+            <div class="person-summary-card bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+              <div class="person-summary-header"><span class="person-summary-avatar">A</span><div><p class="person-summary-name">Azad</p><p class="person-summary-caption">Gelir, yatırım ve birikim</p></div></div>
               <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
                 <span>Azad Toplam Gelir</span>
                 <span class="font-bold">{{ formatPlain(personTotals.azad.gelir) }}</span>
@@ -433,7 +436,8 @@
             </div>
 
             <!-- 4. ERHAN TABLOSU -->
-            <div class="bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+            <div class="person-summary-card bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+              <div class="person-summary-header"><span class="person-summary-avatar">E</span><div><p class="person-summary-name">Erhan</p><p class="person-summary-caption">Gelir, yatırım ve birikim</p></div></div>
               <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
                 <span>Erhan Toplam Gelir</span>
                 <span class="font-bold">{{ formatPlain(personTotals.erhan.gelir) }}</span>
@@ -467,7 +471,8 @@
             </div>
 
             <!-- 5. HÜLYA TABLOSU -->
-            <div class="bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+            <div class="person-summary-card bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+              <div class="person-summary-header"><span class="person-summary-avatar">H</span><div><p class="person-summary-name">Hülya</p><p class="person-summary-caption">Gelir, yatırım ve birikim</p></div></div>
               <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
                 <span>Hülya Toplam Gelir</span>
                 <span class="font-bold">{{ formatPlain(personTotals.hulya.gelir) }}</span>
@@ -501,7 +506,8 @@
             </div>
 
             <!-- 6. MAMİ (MUHAMMED) TABLOSU -->
-            <div class="bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+            <div class="person-summary-card bg-[#2d3136] rounded-lg p-3 text-white text-xs font-semibold shadow-md space-y-1">
+              <div class="person-summary-header"><span class="person-summary-avatar">M</span><div><p class="person-summary-name">Mami</p><p class="person-summary-caption">Gelir, yatırım ve borç durumu</p></div></div>
               <div class="flex justify-between bg-[#f38b00] text-black px-2 py-1.5 rounded">
                 <span>Mami Toplam Gelir</span>
                 <span class="font-bold">{{ formatPlain(personTotals.mami.gelir) }}</span>
