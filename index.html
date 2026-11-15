@@ -615,7 +615,7 @@
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Akış Türü</label><select v-model="newCash.type" class="w-full text-xs p-2 border rounded bg-white"><option value="GELIR">Gelen Para (+)</option><option value="GIDER">Giden Para (-)</option></select></div>
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Açıklama</label><input type="text" v-model="newCash.title" placeholder="Açıklama" required class="w-full text-xs p-2 border rounded bg-white"></div>
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="newCash.amount" placeholder="0.00" required class="w-full text-xs p-2 border rounded bg-white"></div>
-            <div><label class="block text-xs font-medium text-slate-600 mb-1">Kategori / Kişi</label><input type="text" v-model="newCash.category" placeholder="Örn: erhan giden, emekli, eski" required class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Kategori / Kişi</label><select v-model="newCash.category" required class="w-full text-xs p-2 border rounded bg-white"><option disabled value="">Kategori seçin</option><option v-for="category in cashCategories" :key="category" :value="category">{{ category }}</option></select></div>
             <div><button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium p-2 rounded transition-colors">+ Kaydet</button></div>
           </form>
 
@@ -1323,7 +1323,7 @@
           <div><label class="block font-medium mb-1">Akış Türü</label><select v-model="editModal.row.type" class="w-full p-2 border rounded"><option value="GELIR">GELIR</option><option value="GIDER">GIDER</option></select></div>
           <div><label class="block font-medium mb-1">Açıklama</label><input type="text" v-model="editModal.row.title" class="w-full p-2 border rounded"></div>
           <div><label class="block font-medium mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="editModal.row.amount" class="w-full p-2 border rounded"></div>
-          <div><label class="block font-medium mb-1">Kategori</label><input type="text" v-model="editModal.row.category" class="w-full p-2 border rounded"></div>
+          <div><label class="block font-medium mb-1">Kategori</label><select v-model="editModal.row.category" class="w-full p-2 border rounded"><option disabled value="">Kategori seçin</option><option v-for="category in cashCategories" :key="category" :value="category">{{ category }}</option></select></div>
         </div>
 
         <!-- 3. EVDEKİ LİSTE GÜNCELLEME -->
