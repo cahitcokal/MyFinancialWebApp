@@ -88,6 +88,7 @@
 
         // Form Modelleri
         const cashCategories = ['Köy', 'Eski', 'Hilal', 'Diğer', 'Mami', 'Erhan', 'Hülya', 'Azad', 'Emekli'];
+        const assetPeople = ['Mami', 'Erhan', 'Hülya', 'Azad', 'Ortak', 'Hilal'];
         const newAsset = ref({ transaction_date: new Date().toISOString().substring(0, 10), asset_type: 'ALTIN', trade_type: 'ALIS', amount: null, total_try: null, target_person: '' });
         const newCash = ref({ transaction_date: new Date().toISOString().substring(0, 10), type: 'GIDER', title: '', amount: null, category: '' });
         const newHomeAsset = ref({ owner_name: '', asset_type: '', unit: 'Adet', amount: null });
@@ -779,6 +780,7 @@
           sorts,
           colFilters,
           cashCategories,
+          assetPeople,
           setSort,
           getSortIcon,
           resetFilters,

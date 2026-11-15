@@ -551,7 +551,7 @@
             <div><label class="block text-xs font-medium text-slate-600 mb-1">İşlem</label><select v-model="newAsset.trade_type" class="w-full text-xs p-2 border rounded bg-white"><option value="ALIS">Alış</option><option value="SATIS">Satış</option></select></div>
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Miktar</label><input type="number" step="any" v-model.number="newAsset.amount" placeholder="Örn: 10" required class="w-full text-xs p-2 border rounded bg-white"></div>
             <div><label class="block text-xs font-medium text-slate-600 mb-1">Toplam Tutar (₺)</label><input type="number" step="any" v-model.number="newAsset.total_try" placeholder="Örn: 65000" required class="w-full text-xs p-2 border rounded bg-white"></div>
-            <div><label class="block text-xs font-medium text-slate-600 mb-1">Kime / Kimden</label><input type="text" v-model="newAsset.target_person" placeholder="Hilal / Erhan / Ortak" class="w-full text-xs p-2 border rounded bg-white"></div>
+            <div><label class="block text-xs font-medium text-slate-600 mb-1">Kime / Kimden</label><select v-model="newAsset.target_person" required class="w-full text-xs p-2 border rounded bg-white"><option disabled value="">Kişi seçin</option><option v-for="person in assetPeople" :key="person" :value="person">{{ person }}</option></select></div>
             <div><button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium p-2 rounded transition-colors">+ Kaydet</button></div>
           </form>
 
@@ -1314,7 +1314,7 @@
             <div><label class="block font-medium mb-1">Miktar</label><input type="number" step="any" v-model.number="editModal.row.amount" class="w-full p-2 border rounded"></div>
             <div><label class="block font-medium mb-1">Tutar (₺)</label><input type="number" step="any" v-model.number="editModal.row.total_try" class="w-full p-2 border rounded"></div>
           </div>
-          <div><label class="block font-medium mb-1">Kişi</label><input type="text" v-model="editModal.row.target_person" class="w-full p-2 border rounded"></div>
+          <div><label class="block font-medium mb-1">Kişi</label><select v-model="editModal.row.target_person" required class="w-full p-2 border rounded"><option disabled value="">Kişi seçin</option><option v-for="person in assetPeople" :key="person" :value="person">{{ person }}</option></select></div>
         </div>
 
         <!-- 2. Nakit Akışı Güncelleme -->
