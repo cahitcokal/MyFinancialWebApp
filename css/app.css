@@ -143,3 +143,13 @@ th.sortable:hover {
     padding-inline: 0.55rem;
   }
 }
+/* Mobil/PWA görünümünde yenileme kontrolü her zaman erişilebilir olsun. */
+@media (max-width: 640px) {
+  .refresh-button {
+    position: fixed;
+    right: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+    z-index: 40;
+    box-shadow: 0 8px 20px rgb(15 23 42 / 0.25);
+  }
+}

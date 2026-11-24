@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hesapkitap-v4';
+const CACHE_NAME = 'hesapkitap-v5';
 const APP_SHELL = [
   './',
   './index.html',
@@ -31,6 +31,25 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  // Supabase/API verileri kesinlikle önbellekten okunmamalı.
+  if (event.request.url.includes('supabase.co')) return;
+
+  // Uygulama kabuğunda güncel dosyayı önce ağdan al; ağ yoksa eski sürüm çalışsın.
+  if (event.request.mode === 'navigate' || event.request.destination === 'script' || event.request.destination === 'style') {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+        .then((response) => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cached) => {

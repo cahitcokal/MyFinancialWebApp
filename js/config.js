@@ -2,7 +2,11 @@
   const SUPABASE_URL = window.SUPABASE_PUBLIC_CONFIG.url;
   const SUPABASE_ANON_KEY = window.SUPABASE_PUBLIC_CONFIG.key;
   const PASSWORD_RESET_REDIRECT_URL = 'https://cahitcokal.github.io/MyFinancialWebApp/';
-  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // Supabase yanıtları tarayıcı veya Service Worker önbelleğinden gelmemeli.
+  const noStoreFetch = (input, init = {}) => fetch(input, { ...init, cache: 'no-store' });
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { fetch: noStoreFetch }
+  });
   const authScreen = document.getElementById('auth-screen');
   const app = document.getElementById('app');
   const loginForm = document.getElementById('login-form');

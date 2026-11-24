@@ -2,7 +2,8 @@
 
     // Supabase bağlantısı config.js tarafından merkezi olarak sağlanır.
     const { supabaseUrl, supabaseAnonKey } = window.APP_CONFIG;
-    const db = window.APP_AUTH?.client || window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    const noStoreFetch = (input, init = {}) => fetch(input, { ...init, cache: 'no-store' });
+    const db = window.APP_AUTH?.client || window.supabase.createClient(supabaseUrl, supabaseAnonKey, { global: { fetch: noStoreFetch } });
     const signOut = () => window.APP_AUTH?.signOut();
     const isAdmin = ref(false);
 
@@ -13,6 +14,8 @@
 
         const deferredPrompt = ref(null);
         const dumpInProgress = ref(false);
+        const isRefreshing = ref(false);
+        const lastUpdated = ref(null);
         window.addEventListener('beforeinstallprompt', (e) => {
           e.preventDefault();
           deferredPrompt.value = e;
@@ -104,6 +107,8 @@
         const newChildGold = ref({ transaction_date: new Date().toISOString().substring(0, 10), child_name: 'Damla', trade_type: 'ALIS', amount: null, total_try: null });
 
         const fetchData = async () => {
+          if (isRefreshing.value) return;
+          isRefreshing.value = true;
           try {
             const { data: assets } = await db.from('asset_transactions').select('*').order('transaction_date', { ascending: false }).limit(5000);
             if (assets) assetList.value = assets;
@@ -135,10 +140,15 @@
             const { data: cGold } = await db.from('children_gold').select('*').order('transaction_date', { ascending: false });
             if (cGold) childrenGoldList.value = cGold;
 
+            lastUpdated.value = new Date();
           } catch (err) {
             console.error('Veri çekme hatası:', err);
+          } finally {
+            isRefreshing.value = false;
           }
         };
+
+        const refreshData = () => fetchData();
 
         const deleteRow = async (tableName, id) => {
           if (!isAdmin.value) return;
@@ -766,6 +776,10 @@
             isAdmin.value = event.detail?.role === 'admin';
             fetchData();
           });
+          window.addEventListener('pageshow', () => { if (isAdmin.value || window.APP_AUTH_READY) fetchData(); });
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && isAdmin.value) fetchData();
+          });
         });
 
         return {
@@ -773,6 +787,9 @@
           mercanTab,
           deferredPrompt,
           dumpInProgress,
+          isRefreshing,
+          lastUpdated,
+          refreshData,
           installPwa,
           downloadDatabaseDump,
           signOut,
